@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { fmtBRL, fmtBRLShort, parseCents, fromCents, centsToNum, calcIR, calcPGBL, projetarPGBL, fileToBase64, callClaude } from '../utils'
 
@@ -56,7 +56,7 @@ function AliquotaBadge({ pct }) {
   const bg = green ? 'rgba(26,153,85,0.1)' : pctInt <= 15 ? 'rgba(243,156,18,0.1)' : 'rgba(204,44,31,0.1)'
   const clr = green ? 'var(--green)' : pctInt <= 15 ? '#c87010' : 'var(--red)'
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: bg, border: '1px solid ' + clr, borderRadius: '20px', padding: '4px 12px', opacity: 0.9 }}>
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: bg, border: '1px solid ' + clr, borderRadius: '20px', padding: '4px 12px' }}>
       <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: clr }} />
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: clr }}>{pctInt.toFixed(1)}%</span>
     </div>
@@ -82,7 +82,7 @@ function ChartTooltip(props) {
 
 function DropZone({ files, onAdd, onRemove, label, single }) {
   const inputRef = useRef()
-  const [dragging, setDragging] = useState(false)
+  const [dragging, setDragging] = React.useState(false)
   function handleFiles(list) {
     const arr = Array.from(list)
     if (single) { onAdd([arr[0]]) }
@@ -139,27 +139,24 @@ const INCOME_TYPES = [
 
 const ANOS_OPTIONS = [1, 2, 3, 5, 7, 10, 15, 20, 25, 30]
 
-export default function PGBL({ onDataChange }) {
-  const [mode, setMode] = useState('manual')
-  const [rendaMensal, setRendaMensal] = useState('')
-  const [rendaAnual, setRendaAnual] = useState('')
-  const [syncFrom, setSyncFrom] = useState('mensal')
-  const [holerites, setHolerites] = useState([])
-  const [irFile, setIrFile] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [loadingMsg, setLoadingMsg] = useState('')
-  const [error, setError] = useState('')
-  const [extracted, setExtracted] = useState(null)
-  const [anos, setAnos] = useState(10)
-  const [showTable, setShowTable] = useState(false)
+export default function PGBL({ formState, setFormState, onDataChange }) {
+  const [loading, setLoading] = React.useState(false)
+  const [loadingMsg, setLoadingMsg] = React.useState('')
+  const [error, setError] = React.useState('')
+
+  const { mode, rendaMensal, rendaAnual, syncFrom, holerites, irFile, extracted, anos, showTable } = formState
+
+  function upd(key) { return function(val) { setFormState(function(prev) { return { ...prev, [key]: val } }) } }
 
   function handleRendaMensalChange(cents) {
-    setRendaMensal(cents); setSyncFrom('mensal')
-    setRendaAnual(String(Math.round(((parseInt(cents) || 0) / 100) * 12 * 100)))
+    setFormState(function(prev) {
+      return { ...prev, rendaMensal: cents, syncFrom: 'mensal', rendaAnual: String(Math.round(((parseInt(cents) || 0) / 100) * 12 * 100)) }
+    })
   }
   function handleRendaAnualChange(cents) {
-    setRendaAnual(cents); setSyncFrom('anual')
-    setRendaMensal(String(Math.round(((parseInt(cents) || 0) / 100 / 12) * 100)))
+    setFormState(function(prev) {
+      return { ...prev, rendaAnual: cents, syncFrom: 'anual', rendaMensal: String(Math.round(((parseInt(cents) || 0) / 100 / 12) * 100)) }
+    })
   }
 
   const rendaMensalNum = mode === 'manual'
@@ -204,7 +201,7 @@ export default function PGBL({ onDataChange }) {
       const clean = raw.replace(/```json|```/g, '').trim()
       const si = clean.indexOf('{'), ei = clean.lastIndexOf('}')
       const parsed = JSON.parse(si >= 0 ? clean.slice(si, ei + 1) : clean)
-      setExtracted({ rendaMensal: parsed.rendaMensalTributavel || 0, rendaAnual: parsed.rendaAnualTributavel || 0, rendaAnualNaoTributavel: parsed.rendaAnualNaoTributavel || 0, inss: parsed.inss || 0, irrf: parsed.irrf || 0, meses: parsed.meses || 12, itens: parsed.itens || [], observacoes: parsed.observacoes || '' })
+      upd('extracted')({ rendaMensal: parsed.rendaMensalTributavel || 0, rendaAnual: parsed.rendaAnualTributavel || 0, rendaAnualNaoTributavel: parsed.rendaAnualNaoTributavel || 0, inss: parsed.inss || 0, irrf: parsed.irrf || 0, meses: parsed.meses || 12, itens: parsed.itens || [], observacoes: parsed.observacoes || '' })
     } catch (err) { setError('Erro: ' + err.message) }
     setLoading(false); setLoadingMsg('')
   }
@@ -218,7 +215,7 @@ export default function PGBL({ onDataChange }) {
         {[{ key: 'manual', icon: '✏️', label: 'Preencher manualmente' }, { key: 'upload', icon: '📎', label: 'Upload de documentos' }].map(function(opt) {
           const active = mode === opt.key
           return (
-            <button key={opt.key} onClick={function() { setMode(opt.key); setError('') }}
+            <button key={opt.key} onClick={function() { upd('mode')(opt.key); setError('') }}
               style={{ flex: 1, padding: '10px 12px', border: 'none', borderRadius: '9px', background: active ? 'var(--gold-dim)' : 'transparent', color: active ? 'var(--gold)' : 'var(--text-muted)', fontSize: '13px', fontWeight: active ? 700 : 400, cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'var(--font-display)' }}>
               {opt.icon} {opt.label}
             </button>
@@ -226,7 +223,6 @@ export default function PGBL({ onDataChange }) {
         })}
       </div>
 
-      {/* Manual mode */}
       {mode === 'manual' && (
         <Card>
           <CardTitle>Renda Bruta Tributável</CardTitle>
@@ -253,20 +249,19 @@ export default function PGBL({ onDataChange }) {
         </Card>
       )}
 
-      {/* Upload mode */}
       {mode === 'upload' && (
         <div>
           <Card>
             <CardTitle>🧾 Holerites</CardTitle>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.7 }}>
-              Envie quantos holerites quiser — a IA soma os rendimentos e separa tributáveis de não tributáveis automaticamente.
+              Envie quantos holerites quiser — a IA soma os rendimentos e separa tributáveis de não tributáveis.
             </div>
-            <DropZone files={holerites} onAdd={function(arr) { setHolerites(function(p) { return p.concat(arr) }) }} onRemove={function(idx) { setHolerites(function(p) { return p.filter(function(_, j) { return j !== idx }) }) }} label="Clique ou arraste os holerites aqui" />
+            <DropZone files={holerites} onAdd={function(arr) { upd('holerites')(holerites.concat(arr)) }} onRemove={function(idx) { upd('holerites')(holerites.filter(function(_, j) { return j !== idx })) }} label="Clique ou arraste os holerites aqui" />
           </Card>
           <Card>
             <CardTitle>📑 Declaração de IR (opcional)</CardTitle>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>A declaração complementa com rendimentos de outras fontes.</div>
-            <DropZone files={irFile} onAdd={function(arr) { setIrFile([arr[0]]) }} onRemove={function() { setIrFile([]) }} label="Clique ou arraste a declaração aqui" single={true} />
+            <DropZone files={irFile} onAdd={function(arr) { upd('irFile')([arr[0]]) }} onRemove={function() { upd('irFile')([]) }} label="Clique ou arraste a declaração aqui" single={true} />
           </Card>
           {error && <div style={{ background: 'rgba(204,44,31,0.08)', border: '1px solid rgba(204,44,31,0.25)', borderRadius: '10px', padding: '12px 16px', color: 'var(--red)', fontSize: '13px', marginBottom: '12px' }}>⚠️ {error}</div>}
           {loading ? <Spinner msg={loadingMsg || 'Processando...'} sub="A IA está analisando seus documentos" /> : (
@@ -291,20 +286,18 @@ export default function PGBL({ onDataChange }) {
                 {extracted.itens && extracted.itens.length > 0 && (
                   <div>
                     <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>Composição da renda</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      {extracted.itens.map(function(item, idx) {
-                        return (
-                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'var(--bg-input)', borderRadius: '7px' }}>
-                            <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: item.tributavel ? 'var(--gold)' : 'var(--text-dim)', flexShrink: 0 }} />
-                            <span style={{ flex: 1, fontSize: '13px', color: 'var(--text)' }}>{item.descricao}</span>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: item.tributavel ? 'var(--text)' : 'var(--text-muted)', fontWeight: 600 }}>{fmtBRL(item.valor)}</span>
-                            <span style={{ fontSize: '10px', color: item.tributavel ? 'var(--gold)' : 'var(--text-dim)', background: item.tributavel ? 'var(--gold-dim)' : 'var(--bg-card)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>
-                              {item.tributavel ? 'Tributável' : 'Não tributável'}
-                            </span>
-                          </div>
-                        )
-                      })}
-                    </div>
+                    {extracted.itens.map(function(item, idx) {
+                      return (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'var(--bg-input)', borderRadius: '7px', marginBottom: '4px' }}>
+                          <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: item.tributavel ? 'var(--gold)' : 'var(--text-dim)', flexShrink: 0 }} />
+                          <span style={{ flex: 1, fontSize: '13px', color: 'var(--text)' }}>{item.descricao}</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 600 }}>{fmtBRL(item.valor)}</span>
+                          <span style={{ fontSize: '10px', color: item.tributavel ? 'var(--gold)' : 'var(--text-dim)', background: item.tributavel ? 'var(--gold-dim)' : 'var(--bg-card)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>
+                            {item.tributavel ? 'Tributável' : 'Não tributável'}
+                          </span>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
                 {extracted.observacoes && <div style={{ marginTop: '14px', padding: '12px 14px', background: 'rgba(74,159,212,0.07)', border: '1px solid rgba(74,159,212,0.2)', borderRadius: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>📌 {extracted.observacoes}</div>}
@@ -314,7 +307,6 @@ export default function PGBL({ onDataChange }) {
         </div>
       )}
 
-      {/* Results */}
       {hasData && (
         <div className="animate-in">
           <Card style={{ borderColor: 'var(--gold)' }}>
@@ -348,7 +340,7 @@ export default function PGBL({ onDataChange }) {
                 {ANOS_OPTIONS.map(function(n) {
                   const active = anos === n
                   return (
-                    <button key={n} onClick={function() { setAnos(n) }}
+                    <button key={n} onClick={function() { upd('anos')(n) }}
                       style={{ padding: '5px 11px', border: active ? '1.5px solid var(--gold)' : '1px solid var(--border)', borderRadius: '20px', background: active ? 'var(--gold-dim)' : 'transparent', color: active ? 'var(--gold)' : 'var(--text-muted)', fontSize: '12px', fontWeight: active ? 800 : 400, cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>
                       {n}a
                     </button>
@@ -357,7 +349,7 @@ export default function PGBL({ onDataChange }) {
               </div>
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '20px', lineHeight: 1.7 }}>
-              Rentabilidade real de <strong style={{ color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>4% a.a.</strong> (IPCA+4% sem projetar inflação) · Aportes e restituições reinvestidos anualmente.
+              Rentabilidade real de <strong style={{ color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>4% a.a.</strong> (IPCA+4% sem projetar inflação) · Aportes e restituições reinvestidos.
             </div>
             {projection.length > 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '24px' }}>
@@ -387,7 +379,7 @@ export default function PGBL({ onDataChange }) {
                 <Line type="monotone" dataKey="total" name="Total" stroke="var(--green)" strokeWidth={2.5} dot={false} />
               </LineChart>
             </ResponsiveContainer>
-            <button onClick={function() { setShowTable(function(t) { return !t }) }}
+            <button onClick={function() { upd('showTable')(!showTable) }}
               style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 600, padding: '8px 16px', cursor: 'pointer', width: '100%', marginTop: '16px', fontFamily: 'var(--font-display)' }}>
               {showTable ? '▴ Ocultar tabela' : '▾ Ver tabela ano a ano'}
             </button>
@@ -422,7 +414,7 @@ export default function PGBL({ onDataChange }) {
         </div>
       )}
 
-      {!hasData && !(mode === 'upload' && loading) && (
+      {!hasData && !loading && (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-dim)' }}>
           <div style={{ fontSize: '52px', marginBottom: '16px' }}>📊</div>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: '20px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 700 }}>
