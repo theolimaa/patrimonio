@@ -24,133 +24,111 @@ export function generatePDF(appData, sections, clientInfo) {
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=DM+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"/>
 <style>
   *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:'DM Sans',sans-serif;background:#fff;color:#1a2744;font-size:13px;line-height:1.6;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-  @page { margin:0; size:A4 portrait; }
-
-.cover{
-  background:#1a2744;
-  color:#fff;
-  padding:30mm 18mm 20mm;
-  width:210mm;
-  min-height:297mm;
-  display:block;
-  page-break-after:always;
-  break-after:page;
-}
-  .section:last-of-type{border-bottom:none;}
-
-  .no-break{
-    page-break-inside:avoid;
-    break-inside:avoid;
+  body{
+    font-family:'DM Sans',sans-serif;
+    background:#fff;
+    color:#1a2744;
+    font-size:13px;
+    line-height:1.6;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
   }
 
-  table{
-    width:100%;
-    border-collapse:collapse;
-    margin:10px 0;
-    font-size:11.5px;
-    page-break-inside:avoid;
-    break-inside:avoid;
-  }
+  @page { margin: 14mm 15mm; size: A4 portrait; }
 
-  /* Force page break BEFORE each section except the first */
-  .section+.section{
-    page-break-before:auto;
-  }
-
-  /* ── Cover ── */
+  /* Capa: margem negativa cancela exatamente a margem do @page → sangra até a borda */
   .cover{
     background:#1a2744;
     color:#fff;
-    padding:36px 40px 32px;
-    margin:-16mm -15mm 0;
-    page-break-after:always;
-    break-after:page;
+    margin: -14mm -15mm 0 -15mm;
+    padding: 28mm 20mm 22mm;
+    page-break-after: always;
+    break-after: page;
   }
-  .cover-tag{font-family:'Montserrat',sans-serif;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#c9a84c;font-weight:700;margin-bottom:8px;}
-  .cover-title{font-family:'Montserrat',sans-serif;font-size:26px;font-weight:800;color:#fff;line-height:1.15;margin-bottom:6px;}
-  .cover-date{font-size:12px;color:rgba(255,255,255,0.45);margin-top:10px;}
-  .cover-bar{height:3px;background:linear-gradient(90deg,#c9a84c,transparent);margin-top:14px;margin-bottom:18px;}
-  .cover-hello{font-family:'Montserrat',sans-serif;font-size:16px;color:#fff;font-weight:400;margin-top:8px;}
+  .cover-tag{font-family:'Montserrat',sans-serif;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#c9a84c;font-weight:700;margin-bottom:10px;}
+  .cover-title{font-family:'Montserrat',sans-serif;font-size:32px;font-weight:800;color:#fff;line-height:1.15;margin-bottom:0;}
+  .cover-bar{height:3px;background:linear-gradient(90deg,#c9a84c,transparent);margin:20px 0 24px;}
+  .cover-hello{font-family:'Montserrat',sans-serif;font-size:18px;color:#fff;font-weight:400;margin-bottom:8px;}
   .cover-hello strong{color:#e2c97e;font-weight:800;}
-  .cover-advisor{font-size:12px;color:rgba(255,255,255,0.5);margin-top:6px;}
+  .cover-advisor{font-size:13px;color:rgba(255,255,255,0.55);margin-bottom:10px;}
+  .cover-date{font-size:12px;color:rgba(255,255,255,0.4);margin-top:4px;}
 
-  /* ── Section headers ── */
+  /* Seções */
+  .section{margin-bottom:22px;padding-bottom:8px;border-bottom:1.5px solid #e8edf5;page-break-inside:avoid;break-inside:avoid;}
+  .section:last-of-type{border-bottom:none;}
   .section-tag{font-family:'Montserrat',sans-serif;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:#c9a84c;font-weight:700;margin-bottom:5px;}
-  .section-title{font-family:'Montserrat',sans-serif;font-size:17px;font-weight:800;color:#1a2744;margin-bottom:16px;}
+  .section-title{font-family:'Montserrat',sans-serif;font-size:17px;font-weight:800;color:#1a2744;margin-bottom:14px;}
 
-  /* ── Cards grid ── */
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
-  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;}
+  .nb{page-break-inside:avoid;break-inside:avoid;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;}
 
   .card{background:#f5f7fb;border:1px solid #e0e8f0;border-radius:9px;padding:13px 15px;page-break-inside:avoid;break-inside:avoid;}
-  .card-gold{background:#fffbf0;border:1px solid #e8d070;}
-  .card-green{background:#f0fdf5;border:1px solid #a7f3d0;}
-  .card-red{background:#fff5f5;border:1px solid #fca5a5;}
-  .card-label{font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:#6a8090;margin-bottom:5px;font-weight:700;font-family:'Montserrat',sans-serif;}
-  .card-value{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;color:#1a2744;}
+  .card-gold{background:#fffbf0;border-color:#e8d070;}
+  .card-green{background:#f0fdf5;border-color:#a7f3d0;}
+  .card-red{background:#fff5f5;border-color:#fca5a5;}
+  .card-label{font-family:'Montserrat',sans-serif;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;color:#6a8090;margin-bottom:5px;}
   .card-gold .card-label{color:#a07020;}
-  .card-gold .card-value{color:#8a5c10;}
   .card-green .card-label{color:#166534;}
-  .card-green .card-value{color:#15803d;}
   .card-red .card-label{color:#991b1b;}
+  .card-value{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;color:#1a2744;}
+  .card-gold .card-value{color:#8a5c10;}
+  .card-green .card-value{color:#15803d;}
   .card-red .card-value{color:#b91c1c;}
   .card-sub{font-size:10px;color:#8aa0b8;margin-top:3px;}
 
-  /* ── Progress bar ── */
-  .progress-wrap{margin:14px 0;page-break-inside:avoid;break-inside:avoid;}
+  .wf-row{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:7px;margin-bottom:5px;font-size:12px;}
+  .wf-normal{background:#f5f7fb;border:1px solid #e0e8f0;}
+  .wf-green{background:#f0fdf5;border:1px solid #a7f3d0;color:#166534;}
+  .wf-gold{background:#fffbf0;border:1.5px solid #c9a84c;}
+  .wf-total-label{font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;}
+  .wf-value{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:14px;}
+  .wf-divider{height:1px;background:#e0e8f0;margin:6px 0;}
+
+  .progress-wrap{margin:12px 0;page-break-inside:avoid;break-inside:avoid;}
   .progress-label{display:flex;justify-content:space-between;font-size:11px;color:#6a8090;margin-bottom:5px;}
   .progress-bar{height:7px;background:#e0e8f0;border-radius:4px;overflow:hidden;}
   .progress-fill{height:100%;background:linear-gradient(90deg,#b5862a,#e2c97e);border-radius:4px;}
 
-  /* ── Insight box ── */
-  .insight{background:#fffbf0;border:1px solid #e8d070;border-radius:9px;padding:13px 15px;margin:13px 0;font-size:12px;color:#6a5020;line-height:1.7;page-break-inside:avoid;break-inside:avoid;}
+  .insight{background:#fffbf0;border:1px solid #e8d070;border-radius:9px;padding:12px 15px;margin:12px 0;font-size:12px;color:#6a5020;line-height:1.7;page-break-inside:avoid;break-inside:avoid;}
   .insight strong{color:#1a2744;}
 
-  /* ── Table ── */
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:11.5px;page-break-inside:avoid;break-inside:avoid;}
   th{background:#f0f4f9;font-family:'Montserrat',sans-serif;font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.08em;color:#6a8090;padding:8px 10px;text-align:left;border-bottom:1.5px solid #dde5f0;}
   th.right,td.right{text-align:right;}
-  td{padding:8px 10px;border-bottom:1px solid #eef2f8;color:#1a2744;vertical-align:middle;}
+  td{padding:7px 10px;border-bottom:1px solid #eef2f8;color:#1a2744;vertical-align:middle;}
   td.mono{font-family:'IBM Plex Mono',monospace;}
   td.bold{font-weight:700;}
   tr.total-row td{background:#f5f7fb;font-weight:700;border-top:1.5px solid #dde5f0;}
   tr.highlight td{background:#fffbf0;}
 
-  /* ── Legend dots ── */
   .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;}
   .dot-gold{background:#c9a84c;}
   .dot-blue{background:#4a9fd4;}
   .dot-green{background:#2ecc71;}
 
-  /* ── Empty state ── */
   .empty-note{padding:18px;text-align:center;color:#8aa0b8;font-style:italic;background:#f9fafc;border:1px dashed #dde5f0;border-radius:9px;margin:6px 0;}
-
-  /* ── Footer ── */
-  .footer{margin-top:28px;padding-top:14px;border-top:1px solid #e0e8f0;font-size:10px;color:#8aa0b8;text-align:center;}
+  .footer{margin-top:24px;padding-top:12px;border-top:1px solid #e0e8f0;font-size:10px;color:#8aa0b8;text-align:center;}
 </style>
 </head>
 <body>
 
-<!-- ── COVER ── -->
+<!-- CAPA -->
 <div class="cover">
   <div class="cover-tag">Planejamento</div>
   <div class="cover-title">Relatório Financeiro<br/>Patrimonial</div>
   <div class="cover-bar"></div>
-  ${info.clientName
-    ? `<div class="cover-hello">Olá, <strong>${info.clientName}</strong></div>`
-    : ''}
-  ${info.advisorName
-    ? `<div class="cover-advisor">Assessor responsável: ${info.advisorName}</div>`
-    : ''}
+  ${info.clientName ? `<div class="cover-hello">Olá, <strong>${info.clientName}</strong></div>` : ''}
+  ${info.advisorName ? `<div class="cover-advisor">Assessor responsável: ${info.advisorName}</div>` : ''}
   <div class="cover-date">Gerado em ${fmtDate()}</div>
 </div>
 
-<!-- ── RISCOS ── -->
+<!-- RISCOS -->
 <div class="section">
   <div class="section-tag">Módulo 01</div>
   <div class="section-title">🛡️ Gestão de Riscos</div>
   ${riscos ? `
-  <div class="grid3 no-break">
+  <div class="grid3 nb">
     <div class="card">
       <div class="card-label">Patrimônio atual</div>
       <div class="card-value">${fmtBRLShort(riscos.patrimonioAtual || 0)}</div>
@@ -159,14 +137,34 @@ export function generatePDF(appData, sections, clientInfo) {
       <div class="card-label">Meta para aposentadoria</div>
       <div class="card-value">${fmtBRLShort(riscos.patrimonioAposentadoria || 0)}</div>
     </div>
-    <div class="${riscos.cobertura > 0 ? 'card card-gold' : 'card card-green'}">
-      <div class="card-label">Cobertura necessária</div>
-      <div class="card-value">${fmtBRLShort(riscos.cobertura || 0)}</div>
-      <div class="card-sub">${riscos.cobertura > 0 ? 'Gap a cobrir com seguro' : 'Meta já atingida ✓'}</div>
+    <div class="${(riscos.gapDescoberto || 0) > 0 ? 'card card-gold' : 'card card-green'}">
+      <div class="card-label">Gap descoberto</div>
+      <div class="card-value">${fmtBRLShort(riscos.gapDescoberto || 0)}</div>
+      <div class="card-sub">${(riscos.gapDescoberto || 0) > 0 ? 'Cobertura adicional necessária' : 'Cobertura suficiente ✓'}</div>
     </div>
   </div>
+
+  <div class="nb" style="margin-bottom:12px;">
+    <div class="wf-row wf-normal">
+      <span>Cobertura necessária (gap patrimonial)</span>
+      <span class="wf-value">${fmtBRL(riscos.coberturaNecessaria || 0)}</span>
+    </div>
+    ${(riscos.coberturaContratada || 0) > 0 ? `
+    <div class="wf-row wf-green">
+      <span>(-) Cobertura já contratada</span>
+      <span class="wf-value" style="color:#15803d">- ${fmtBRL(riscos.coberturaContratada)}</span>
+    </div>` : ''}
+    <div class="wf-divider"></div>
+    <div class="wf-row ${(riscos.gapDescoberto || 0) > 0 ? 'wf-gold' : 'wf-green'}">
+      <span class="wf-total-label" style="color:${(riscos.gapDescoberto || 0) > 0 ? '#8a5c10' : '#15803d'}">
+        ${(riscos.gapDescoberto || 0) > 0 ? 'Gap descoberto' : '✓ Cobertura suficiente'}
+      </span>
+      <span class="wf-value" style="color:${(riscos.gapDescoberto || 0) > 0 ? '#8a5c10' : '#15803d'}">${fmtBRL(riscos.gapDescoberto || 0)}</span>
+    </div>
+  </div>
+
   ${(riscos.patrimonioAposentadoria || 0) > 0 ? `
-  <div class="progress-wrap">
+  <div class="progress-wrap nb">
     <div class="progress-label">
       <span>Progresso rumo à meta</span>
       <strong>${Math.min(100, ((riscos.patrimonioAtual || 0) / riscos.patrimonioAposentadoria) * 100).toFixed(1)}%</strong>
@@ -175,26 +173,30 @@ export function generatePDF(appData, sections, clientInfo) {
       <div class="progress-fill" style="width:${Math.min(100, ((riscos.patrimonioAtual || 0) / riscos.patrimonioAposentadoria) * 100).toFixed(1)}%"></div>
     </div>
   </div>` : ''}
-  ${(riscos.cobertura || 0) > 0 ? `
+
+  ${(riscos.gapDescoberto || 0) > 0 ? `
   <div class="insight">
-    💡 Para garantir que sua família mantenha o padrão de vida em caso de invalidez ou falecimento antes de atingir a meta patrimonial, recomenda-se uma <strong>cobertura de seguro de ${fmtBRL(riscos.cobertura)}</strong>. Esse valor corresponde ao gap entre o patrimônio atual e a meta de aposentadoria.
+    💡 ${(riscos.coberturaContratada || 0) > 0
+      ? `Considerando a cobertura já contratada de <strong>${fmtBRL(riscos.coberturaContratada)}</strong>, ainda há um gap descoberto de <strong>${fmtBRL(riscos.gapDescoberto)}</strong> a ser coberto com seguro adicional de invalidez ou vida.`
+      : `Para garantir que sua família mantenha o padrão de vida em caso de invalidez, recomenda-se uma cobertura de <strong>${fmtBRL(riscos.coberturaNecessaria || 0)}</strong>, correspondente ao gap entre o patrimônio atual e a meta de aposentadoria.`
+    }
   </div>` : ''}
   ` : '<div class="empty-note">Nenhum dado preenchido para este módulo.</div>'}
 </div>
 
-<!-- ── SUCESSÃO ── -->
+<!-- SUCESSÃO -->
 <div class="section">
   <div class="section-tag">Módulo 02</div>
   <div class="section-title">🏛️ Planejamento Sucessório</div>
   ${sucessao ? `
-  <div class="no-break">
-    <table style="margin-bottom:14px;">
+  <div class="nb">
+    <table style="margin-bottom:12px;">
       <tr><th>Regime matrimonial</th><td>${REGIMES[sucessao.regimeCasamento] || '—'}</td></tr>
     </table>
   </div>
 
   ${sucessao.imoveis && sucessao.imoveis.some(function(im) { return im.valor }) ? `
-  <div class="no-break">
+  <div class="nb">
     <table>
       <thead><tr>
         <th>Imóvel</th><th>Tipo</th>
@@ -218,7 +220,7 @@ export function generatePDF(appData, sections, clientInfo) {
   </div>` : ''}
 
   ${sucessao.veiculos && sucessao.veiculos.some(function(ve) { return ve.valor }) ? `
-  <div class="no-break">
+  <div class="nb">
     <table>
       <thead><tr><th>Veículo</th><th>Tipo</th><th class="right">Valor</th></tr></thead>
       <tbody>
@@ -230,10 +232,28 @@ export function generatePDF(appData, sections, clientInfo) {
     </table>
   </div>` : ''}
 
-  <div class="grid3 no-break" style="margin-top:16px;">
+  <div class="nb" style="margin:14px 0 10px;">
+    <div style="font-family:'Montserrat',sans-serif;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#6a8090;font-weight:700;margin-bottom:8px;">Composição do patrimônio</div>
+    <div class="wf-row wf-normal">
+      <span>Patrimônio bruto (sem previdência)</span>
+      <span class="wf-value">${fmtBRL((sucessao.totais.totalBruto || 0) - (sucessao.previdenciaNum || 0))}</span>
+    </div>
+    ${(sucessao.previdenciaNum || 0) > 0 ? `
+    <div class="wf-row wf-green">
+      <span>(-) Previdência privada (não inventariável)</span>
+      <span class="wf-value" style="color:#15803d">- ${fmtBRL(sucessao.previdenciaNum)}</span>
+    </div>` : ''}
+    <div class="wf-divider"></div>
+    <div class="wf-row wf-gold">
+      <span class="wf-total-label" style="color:#8a5c10">Patrimônio inventariável</span>
+      <span class="wf-value" style="color:#8a5c10">${fmtBRL(sucessao.totais.totalInventariavel || 0)}</span>
+    </div>
+  </div>
+
+  <div class="grid3 nb">
     <div class="card card-gold">
-      <div class="card-label">Patrimônio bruto total</div>
-      <div class="card-value">${fmtBRLShort(sucessao.totais.totalBruto || 0)}</div>
+      <div class="card-label">Patrimônio inventariável</div>
+      <div class="card-value">${fmtBRLShort(sucessao.totais.totalInventariavel || 0)}</div>
     </div>
     <div class="card card-red">
       <div class="card-label">Custos de inventário (15%)</div>
@@ -245,7 +265,33 @@ export function generatePDF(appData, sections, clientInfo) {
     </div>
   </div>
 
-  <div class="no-break">
+  ${(sucessao.coberturaNum || 0) > 0 || (sucessao.previdenciaNum || 0) > 0 ? `
+  <div class="nb" style="margin:12px 0 10px;">
+    <div style="font-family:'Montserrat',sans-serif;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#6a8090;font-weight:700;margin-bottom:8px;">Cobertura dos custos de inventário</div>
+    <div class="wf-row wf-normal">
+      <span>Custos totais de inventário</span>
+      <span class="wf-value">${fmtBRL(sucessao.totais.totalCustos || 0)}</span>
+    </div>
+    ${(sucessao.coberturaNum || 0) > 0 ? `
+    <div class="wf-row wf-green">
+      <span>(-) Seguro de vida contratado</span>
+      <span class="wf-value" style="color:#15803d">- ${fmtBRL(sucessao.coberturaNum)}</span>
+    </div>` : ''}
+    ${(sucessao.previdenciaNum || 0) > 0 ? `
+    <div class="wf-row wf-green">
+      <span>(-) Previdência disponível para herdeiros</span>
+      <span class="wf-value" style="color:#15803d">- ${fmtBRL(sucessao.previdenciaNum)}</span>
+    </div>` : ''}
+    <div class="wf-divider"></div>
+    <div class="wf-row ${(sucessao.totais.gapCoberturaMorte || 0) > 0 ? 'wf-gold' : 'wf-green'}">
+      <span class="wf-total-label" style="color:${(sucessao.totais.gapCoberturaMorte || 0) > 0 ? '#8a5c10' : '#15803d'}">
+        ${(sucessao.totais.gapCoberturaMorte || 0) > 0 ? 'Gap descoberto' : '✓ Custos totalmente cobertos'}
+      </span>
+      <span class="wf-value" style="color:${(sucessao.totais.gapCoberturaMorte || 0) > 0 ? '#8a5c10' : '#15803d'}">${fmtBRL(sucessao.totais.gapCoberturaMorte || 0)}</span>
+    </div>
+  </div>` : ''}
+
+  <div class="nb">
     <table>
       <thead><tr><th>Custo de Inventário</th><th class="right">Alíquota</th><th class="right">Valor</th></tr></thead>
       <tbody>
@@ -259,12 +305,12 @@ export function generatePDF(appData, sections, clientInfo) {
   ` : '<div class="empty-note">Nenhum dado preenchido para este módulo.</div>'}
 </div>
 
-<!-- ── PGBL ── -->
+<!-- PGBL -->
 <div class="section">
   <div class="section-tag">Módulo 03</div>
   <div class="section-title">📊 PGBL & Planejamento Tributário</div>
   ${pgbl ? `
-  <div class="grid2 no-break">
+  <div class="grid2 nb">
     <div class="card">
       <div class="card-label">Renda bruta anual</div>
       <div class="card-value">${fmtBRL(pgbl.rendaAnual || 0)}</div>
@@ -290,7 +336,7 @@ export function generatePDF(appData, sections, clientInfo) {
   </div>
 
   ${pgbl.projecao && pgbl.projecao.length > 0 ? `
-  <div class="no-break">
+  <div class="nb">
     <table>
       <thead>
         <tr>
@@ -305,8 +351,7 @@ export function generatePDF(appData, sections, clientInfo) {
       ${pgbl.projecao.filter(function(row) {
         const len = pgbl.projecao.length
         if (len <= 15) return true
-        const checkpoints = [1, 2, 3, 5, 7, 10, 15, 20, 25, 30]
-        return checkpoints.includes(row.ano)
+        return [1, 2, 3, 5, 7, 10, 15, 20, 25, 30].includes(row.ano)
       }).map(function(row, idx, arr) {
         const isLast = idx === arr.length - 1
         return `<tr class="${isLast ? 'highlight' : ''}">
