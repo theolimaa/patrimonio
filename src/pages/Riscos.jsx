@@ -65,17 +65,17 @@ function MoneyField({ label, value, onChange, hint }) {
   )
 }
 
-function MetricBox({ label, value, accent, green, sub }) {
+function MetricBox({ label, value, accent, sub }) {
   return (
     <div style={{
-      background: accent ? 'var(--gold-dim)' : green ? 'rgba(26,153,85,0.07)' : 'var(--bg-input)',
-      border: accent ? '1.5px solid var(--gold)' : green ? '1.5px solid rgba(26,153,85,0.35)' : '1px solid var(--border)',
+      background: accent ? 'var(--gold-dim)' : 'var(--bg-input)',
+      border: accent ? '1.5px solid var(--gold)' : '1px solid var(--border)',
       borderRadius: '12px', padding: '18px 20px',
     }}>
-      <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.12em', color: accent ? 'var(--gold)' : green ? 'var(--green)' : 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>
+      <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.12em', color: accent ? 'var(--gold)' : 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>
         {label}
       </div>
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '20px', fontWeight: 600, color: accent ? 'var(--gold-light)' : green ? 'var(--green)' : 'var(--text)', lineHeight: 1 }}>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '20px', fontWeight: 600, color: accent ? 'var(--gold-light)' : 'var(--text)', lineHeight: 1 }}>
         {value}
       </div>
       {sub && <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '6px' }}>{sub}</div>}
@@ -86,62 +86,48 @@ function MetricBox({ label, value, accent, green, sub }) {
 export default function Riscos({ shared, setShared, clientInfo, onClientInfoChange, onDataChange }) {
   const [patrimonioAtual, setPatrimonioAtual] = useState(numToCents(shared.patrimonioFinanceiro) || '')
   const [patrimonioAposentadoria, setPatrimonioAposentadoria] = useState(numToCents(shared.patrimonioAposentadoria) || '')
-  const [coberturaContratada, setCoberturaContratada] = useState('')
 
   const atual = centsToNum(patrimonioAtual)
   const aposentadoria = centsToNum(patrimonioAposentadoria)
-  const coberturaContratadaNum = centsToNum(coberturaContratada)
-
-  // Cobertura bruta necessária = gap para aposentadoria
-  const coberturaNecessaria = Math.max(0, aposentadoria - atual)
-  // Gap descoberto = necessária menos o que já está contratado
-  const gapDescoberto = Math.max(0, coberturaNecessaria - coberturaContratadaNum)
+  const cobertura = Math.max(0, aposentadoria - atual)
   const pctCoberto = aposentadoria > 0 ? Math.min(100, (atual / aposentadoria) * 100) : 0
 
   useEffect(function() {
     setShared(function(prev) { return { ...prev, patrimonioFinanceiro: atual, patrimonioAposentadoria: aposentadoria } })
     if (atual > 0 || aposentadoria > 0) {
-      onDataChange({
-        patrimonioAtual: atual,
-        patrimonioAposentadoria: aposentadoria,
-        coberturaNecessaria: coberturaNecessaria,
-        coberturaContratada: coberturaContratadaNum,
-        gapDescoberto: gapDescoberto,
-      })
+      onDataChange({ patrimonioAtual: atual, patrimonioAposentadoria: aposentadoria, cobertura: cobertura })
     }
-  }, [atual, aposentadoria, coberturaContratadaNum])
+  }, [atual, aposentadoria])
 
   return (
     <div>
       <SectionTitle />
 
-      {/* Dados do planejamento */}
-      {onClientInfoChange && (
-        <Card>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: '16px', color: 'var(--text)', marginBottom: '6px', fontWeight: 700 }}>
-            Dados do Planejamento
-          </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '4px' }}>
-            Estas informações aparecerão no relatório PDF.
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-            <TextField
-              label="Nome do cliente"
-              value={clientInfo ? clientInfo.clientName : ''}
-              onChange={function(v) { onClientInfoChange(function(prev) { return { ...prev, clientName: v } }) }}
-              placeholder="Ex: João Silva"
-            />
-            <TextField
-              label="Nome do assessor"
-              value={clientInfo ? clientInfo.advisorName : ''}
-              onChange={function(v) { onClientInfoChange(function(prev) { return { ...prev, advisorName: v } }) }}
-              placeholder="Ex: Maria Oliveira"
-            />
-          </div>
-        </Card>
-      )}
+      {/* ── Dados do cliente ── */}
+      <Card>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: '16px', color: 'var(--text)', marginBottom: '6px', fontWeight: 700 }}>
+          Dados do Planejamento
+        </div>
+        <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+          Estas informações aparecerão no relatório PDF.
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <TextField
+            label="Nome do cliente"
+            value={clientInfo.clientName}
+            onChange={function(v) { onClientInfoChange(function(prev) { return { ...prev, clientName: v } }) }}
+            placeholder="Ex: João Silva"
+          />
+          <TextField
+            label="Nome do assessor"
+            value={clientInfo.advisorName}
+            onChange={function(v) { onClientInfoChange(function(prev) { return { ...prev, advisorName: v } }) }}
+            placeholder="Ex: Maria Oliveira"
+          />
+        </div>
+      </Card>
 
-      {/* Patrimônio */}
+      {/* ── Patrimônio ── */}
       <Card>
         <div style={{ fontFamily: 'var(--font-display)', fontSize: '16px', color: 'var(--text)', marginBottom: '20px', fontWeight: 700 }}>
           Patrimônio Financeiro
@@ -162,62 +148,22 @@ export default function Riscos({ shared, setShared, clientInfo, onClientInfoChan
         </div>
       </Card>
 
-      {/* Cobertura já contratada */}
-      <Card>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: '16px', color: 'var(--text)', marginBottom: '6px', fontWeight: 700 }}>
-          Cobertura de Invalidez
-        </div>
-        <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '4px' }}>
-          Informe o valor total já contratado em seguros de invalidez/vida para calcular o gap descoberto.
-        </div>
-        <div style={{ maxWidth: '340px' }}>
-          <MoneyField
-            label="Cobertura já contratada"
-            value={coberturaContratada}
-            onChange={setCoberturaContratada}
-            hint="Soma das coberturas de seguro de invalidez/vida já existentes"
-          />
-        </div>
-      </Card>
-
       {(atual > 0 || aposentadoria > 0) && (
         <div className="animate-in">
           <Card>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: '16px', color: 'var(--text)', marginBottom: '20px', fontWeight: 700 }}>
               Análise de Cobertura
             </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '12px', marginBottom: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px', marginBottom: '24px' }}>
               <MetricBox label="Patrimônio atual" value={fmtBRLShort(atual)} />
               <MetricBox label="Meta para aposentadoria" value={fmtBRLShort(aposentadoria)} />
+              <MetricBox
+                label="Cobertura necessária de invalidez"
+                value={fmtBRLShort(cobertura)}
+                accent={cobertura > 0}
+                sub={cobertura > 0 ? 'Gap a ser coberto por seguro' : 'Meta já atingida ✓'}
+              />
             </div>
-
-            {/* Coverage waterfall */}
-            <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '18px 20px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '14px' }}>
-                Composição da Cobertura Necessária
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  <span style={{ fontSize: '13px', color: 'var(--text)', fontWeight: 500 }}>Cobertura necessária (gap patrimonial)</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'var(--text)', fontWeight: 700 }}>{fmtBRL(coberturaNecessaria)}</span>
-                </div>
-                {coberturaContratadaNum > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(26,153,85,0.06)', borderRadius: '8px', border: '1px solid rgba(26,153,85,0.2)' }}>
-                    <span style={{ fontSize: '13px', color: 'var(--green)', fontWeight: 500 }}>(-) Cobertura já contratada</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'var(--green)', fontWeight: 700 }}>- {fmtBRL(coberturaContratadaNum)}</span>
-                  </div>
-                )}
-                <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: gapDescoberto > 0 ? 'var(--gold-dim)' : 'rgba(26,153,85,0.07)', borderRadius: '8px', border: gapDescoberto > 0 ? '1.5px solid var(--gold)' : '1.5px solid rgba(26,153,85,0.35)' }}>
-                  <span style={{ fontSize: '13px', color: gapDescoberto > 0 ? 'var(--gold-light)' : 'var(--green)', fontWeight: 700, fontFamily: 'var(--font-display)' }}>
-                    {gapDescoberto > 0 ? 'Gap descoberto' : '✓ Cobertura suficiente'}
-                  </span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', color: gapDescoberto > 0 ? 'var(--gold-light)' : 'var(--green)', fontWeight: 800 }}>{fmtBRL(gapDescoberto)}</span>
-                </div>
-              </div>
-            </div>
-
             {aposentadoria > 0 && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -235,18 +181,18 @@ export default function Riscos({ shared, setShared, clientInfo, onClientInfoChan
             )}
           </Card>
 
-          {gapDescoberto > 0 && (
+          {cobertura > 0 && (
             <Card style={{ borderColor: 'var(--gold)', background: 'var(--gold-dim)' }}>
               <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
                 <div style={{ fontSize: '28px', flexShrink: 0 }}>💡</div>
                 <div>
                   <div style={{ fontFamily: 'var(--font-display)', fontSize: '16px', color: 'var(--gold-light)', marginBottom: '8px', fontWeight: 700 }}>
-                    Recomendação de Cobertura Adicional
+                    Recomendação de Cobertura
                   </div>
                   <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.7 }}>
-                    Considerando a cobertura já contratada de <strong style={{ color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>{fmtBRL(coberturaContratadaNum)}</strong>,
-                    ainda há um gap descoberto de <strong style={{ color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>{fmtBRL(gapDescoberto)}</strong> que
-                    precisa ser coberto com seguro adicional de invalidez ou vida para garantir a meta patrimonial.
+                    Para garantir que sua família mantenha o padrão de vida em caso de invalidez ou falecimento antes de atingir sua meta patrimonial,
+                    recomenda-se uma cobertura de seguro de <strong style={{ color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>{fmtBRL(cobertura)}</strong>.
+                    Esse valor corresponde ao gap entre seu patrimônio atual e a meta de aposentadoria.
                   </p>
                 </div>
               </div>
