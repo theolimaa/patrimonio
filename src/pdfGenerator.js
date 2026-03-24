@@ -25,17 +25,18 @@ export function generatePDF(appData, sections, clientInfo) {
 <style>
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:'DM Sans',sans-serif;background:#fff;color:#1a2744;font-size:13px;line-height:1.6;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-  @page{margin:16mm 15mm;size:A4;}
+  @page { margin:0; size:A4 portrait; }
 
-  /* ── Prevent orphan cuts ── */
-  .section{
-    display:block;
-    padding:24px 0 8px;
-    border-bottom:1.5px solid #e8edf5;
-    margin-bottom:20px;
-    page-break-inside:avoid;
-    break-inside:avoid;
-  }
+.cover{
+  background:#1a2744;
+  color:#fff;
+  padding:30mm 18mm 20mm;
+  width:210mm;
+  min-height:297mm;
+  display:block;
+  page-break-after:always;
+  break-after:page;
+}
   .section:last-of-type{border-bottom:none;}
 
   .no-break{
