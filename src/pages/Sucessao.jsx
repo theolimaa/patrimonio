@@ -24,7 +24,7 @@ function Label({ children }) {
   return <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>{children}</div>
 }
 
-function MoneyField({ label, value, onChange }) {
+function MoneyField({ label, value, onChange, hint }) {
   return (
     <div>
       {label && <Label>{label}</Label>}
@@ -35,6 +35,7 @@ function MoneyField({ label, value, onChange }) {
           onFocus={function(e) { e.target.style.borderColor = 'var(--gold)' }}
           onBlur={function(e) { e.target.style.borderColor = 'var(--border)' }} />
       </div>
+      {hint && <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '5px', fontStyle: 'italic' }}>{hint}</div>}
     </div>
   )
 }
@@ -81,26 +82,47 @@ export default function Sucessao({ shared, onDataChange }) {
   const [imoveis, setImoveis] = useState([{ id: genId(), tipo: 'residencial', valor: '', antesCasamento: false }])
   const [veiculos, setVeiculos] = useState([{ id: genId(), tipo: 'carro', valor: '' }])
   const [pfManual, setPfManual] = useState('')
+  const [coberturaJaContratada, setCoberturaJaContratada] = useState('')
+  const [valorPrevidencia, setValorPrevidencia] = useState('')
 
   const patrimonioFinanceiro = shared.patrimonioFinanceiro > 0 ? shared.patrimonioFinanceiro : centsToNum(pfManual)
-  const calcs = calcPatrimonioInventariavel(imoveis, patrimonioFinanceiro, veiculos, regimeCasamento)
+  const previdenciaNum = centsToNum(valorPrevidencia)
+  const coberturaNum = centsToNum(coberturaJaContratada)
+
+  // Previdência não entra em inventário — subtrai do financeiro inventariável
+  const patrimonioFinanceiroInventariavel = Math.max(0, patrimonioFinanceiro - previdenciaNum)
+  const calcs = calcPatrimonioInventariavel(imoveis, patrimonioFinanceiroInventariavel, veiculos, regimeCasamento)
+
   const custos = calcInventario(calcs.totalInventariavel)
   const totalCustos = custos.reduce(function(acc, c) { return acc + c.valor }, 0)
   const patrimonioLiquido = calcs.totalInventariavel - totalCustos
 
+  // Gap de cobertura de morte: custos - seguro já contratado - previdência disponível para herdeiros
+  const gapCoberturaMorte = Math.max(0, totalCustos - coberturaNum - previdenciaNum)
+
+  const hasData = (calcs.totalBruto + previdenciaNum) > 0
+
   useEffect(function() {
-    if (calcs.totalBruto > 0) {
+    if (hasData) {
       onDataChange({
-        imoveis: imoveis, veiculos: veiculos,
+        imoveis: imoveis,
+        veiculos: veiculos,
         patrimonioFinanceiro: patrimonioFinanceiro,
+        previdenciaNum: previdenciaNum,
+        coberturaNum: coberturaNum,
         regimeCasamento: regimeCasamento,
-        totais: { totalBruto: calcs.totalBruto, totalInventariavel: calcs.totalInventariavel, totalCustos: totalCustos, patrimonioLiquido: patrimonioLiquido },
+        totais: {
+          totalBruto: calcs.totalBruto + previdenciaNum, // bruto real inclui previdência
+          totalInventariavel: calcs.totalInventariavel,
+          totalCustos: totalCustos,
+          patrimonioLiquido: patrimonioLiquido,
+          gapCoberturaMorte: gapCoberturaMorte,
+        },
       })
     }
-  }, [imoveis, veiculos, patrimonioFinanceiro, regimeCasamento])
+  }, [imoveis, veiculos, patrimonioFinanceiro, regimeCasamento, previdenciaNum, coberturaNum])
 
   const pieData = custos.map(function(c) { return { name: c.nome, value: Math.round(c.valor), pct: c.pct, fill: c.cor } })
-  const hasData = calcs.totalBruto > 0
 
   function addImovel() { setImoveis(function(p) { return [...p, { id: genId(), tipo: 'residencial', valor: '', antesCasamento: false }] }) }
   function removeImovel(id) { setImoveis(function(p) { return p.filter(function(x) { return x.id !== id }) }) }
@@ -113,6 +135,7 @@ export default function Sucessao({ shared, onDataChange }) {
     <div>
       <SectionTitle />
 
+      {/* Regime */}
       <Card>
         <CardTitle>Regime Matrimonial</CardTitle>
         <div style={{ maxWidth: '340px' }}>
@@ -202,41 +225,119 @@ export default function Sucessao({ shared, onDataChange }) {
         <AddButton onClick={addVeiculo}>Adicionar veículo</AddButton>
       </Card>
 
+      {/* Proteções já existentes */}
+      <Card>
+        <CardTitle>🛡️ Proteções Já Existentes</CardTitle>
+        <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.7 }}>
+          Informe valores de seguro de vida e previdência já contratados. A previdência privada <strong style={{ color: 'var(--text)' }}>não entra em inventário</strong> e pode ser usada pelos herdeiros para pagar os custos.
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <MoneyField
+            label="Seguro de vida / cobertura de morte já contratada"
+            value={coberturaJaContratada}
+            onChange={setCoberturaJaContratada}
+            hint="Soma de todos os seguros de vida já contratados"
+          />
+          <MoneyField
+            label="Previdência privada (PGBL/VGBL)"
+            value={valorPrevidencia}
+            onChange={setValorPrevidencia}
+            hint="Não entra em inventário — reduz o gap de cobertura"
+          />
+        </div>
+      </Card>
+
       {/* Resultados */}
       {hasData && (
         <div className="animate-in">
           <Card style={{ borderColor: 'var(--gold)' }}>
             <CardTitle>📊 Consolidação Patrimonial</CardTitle>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '20px' }}>
-              {[
-                { label: 'Imóveis', value: imoveis.reduce(function(a, im) { return a + centsToNum(im.valor) }, 0) },
-                { label: 'Patrimônio Financeiro', value: patrimonioFinanceiro },
-                { label: 'Veículos', value: veiculos.reduce(function(a, ve) { return a + centsToNum(ve.valor) }, 0) },
-              ].map(function(item) {
-                return (
-                  <div key={item.label} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
-                    <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>{item.label}</div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--text)', fontWeight: 600 }}>{fmtBRLShort(item.value)}</div>
+
+            {/* Patrimônio breakdown */}
+            <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '18px 20px', marginBottom: '16px' }}>
+              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '14px' }}>
+                Composição do Patrimônio
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {[
+                  { label: 'Imóveis', value: imoveis.reduce(function(a, im) { return a + centsToNum(im.valor) }, 0) },
+                  { label: 'Patrimônio financeiro', value: patrimonioFinanceiro },
+                  { label: 'Veículos', value: veiculos.reduce(function(a, ve) { return a + centsToNum(ve.valor) }, 0) },
+                ].map(function(item) {
+                  return (
+                    <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 12px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--text)' }}>{item.label}</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'var(--text)', fontWeight: 600 }}>{fmtBRL(item.value)}</span>
+                    </div>
+                  )
+                })}
+                {previdenciaNum > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 12px', background: 'rgba(26,153,85,0.06)', borderRadius: '8px', border: '1px solid rgba(26,153,85,0.2)' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--green)' }}>(-) Previdência privada <span style={{ fontSize: '11px', fontStyle: 'italic' }}>(não inventariável)</span></span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'var(--green)', fontWeight: 600 }}>- {fmtBRL(previdenciaNum)}</span>
                   </div>
-                )
-              })}
+                )}
+                <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--gold-dim)', borderRadius: '8px', border: '1px solid var(--gold)' }}>
+                  <span style={{ fontSize: '13px', color: 'var(--gold-light)', fontWeight: 700, fontFamily: 'var(--font-display)' }}>Patrimônio inventariável</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', color: 'var(--gold-light)', fontWeight: 800 }}>{fmtBRL(calcs.totalInventariavel)}</span>
+                </div>
+              </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '28px' }}>
+            {/* Summary cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '20px' }}>
               <div style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold)', borderRadius: '10px', padding: '16px' }}>
-                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--gold)', marginBottom: '6px', fontWeight: 700, fontFamily: 'var(--font-display)' }}>Patrimônio bruto total</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', fontWeight: 700, color: 'var(--gold-light)' }}>{fmtBRLShort(calcs.totalBruto)}</div>
+                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--gold)', marginBottom: '6px', fontWeight: 700, fontFamily: 'var(--font-display)' }}>Custos de inventário (15%)</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', fontWeight: 700, color: 'var(--gold-light)' }}>- {fmtBRLShort(totalCustos)}</div>
               </div>
               <div style={{ background: 'rgba(204,44,31,0.07)', border: '1px solid rgba(204,44,31,0.25)', borderRadius: '10px', padding: '16px' }}>
-                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--red)', marginBottom: '6px', fontWeight: 700, fontFamily: 'var(--font-display)' }}>Custos de inventário (15%)</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', fontWeight: 700, color: 'var(--red)' }}>- {fmtBRLShort(totalCustos)}</div>
+                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--red)', marginBottom: '6px', fontWeight: 700, fontFamily: 'var(--font-display)' }}>Patrimônio líquido transferido</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', fontWeight: 700, color: 'var(--red)' }}>{fmtBRLShort(patrimonioLiquido)}</div>
               </div>
-              <div style={{ background: 'rgba(26,153,85,0.07)', border: '1px solid rgba(26,153,85,0.25)', borderRadius: '10px', padding: '16px' }}>
-                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--green)', marginBottom: '6px', fontWeight: 700, fontFamily: 'var(--font-display)' }}>Patrimônio líquido transferido</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', fontWeight: 700, color: 'var(--green)' }}>{fmtBRLShort(patrimonioLiquido)}</div>
+              <div style={{ background: gapCoberturaMorte > 0 ? 'var(--gold-dim)' : 'rgba(26,153,85,0.07)', border: gapCoberturaMorte > 0 ? '1px solid var(--gold)' : '1px solid rgba(26,153,85,0.3)', borderRadius: '10px', padding: '16px' }}>
+                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: gapCoberturaMorte > 0 ? 'var(--gold)' : 'var(--green)', marginBottom: '6px', fontWeight: 700, fontFamily: 'var(--font-display)' }}>
+                  {gapCoberturaMorte > 0 ? 'Gap de cobertura de morte' : 'Custos cobertos ✓'}
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', fontWeight: 700, color: gapCoberturaMorte > 0 ? 'var(--gold-light)' : 'var(--green)' }}>{fmtBRLShort(gapCoberturaMorte)}</div>
               </div>
             </div>
 
+            {/* Coverage waterfall */}
+            {(coberturaNum > 0 || previdenciaNum > 0) && (
+              <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '18px 20px', marginBottom: '20px' }}>
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '14px' }}>
+                  Cobertura dos Custos de Inventário
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 12px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--text)' }}>Custos totais de inventário</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'var(--text)', fontWeight: 600 }}>{fmtBRL(totalCustos)}</span>
+                  </div>
+                  {coberturaNum > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 12px', background: 'rgba(26,153,85,0.06)', borderRadius: '8px', border: '1px solid rgba(26,153,85,0.2)' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--green)' }}>(-) Seguro de vida contratado</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'var(--green)', fontWeight: 600 }}>- {fmtBRL(coberturaNum)}</span>
+                    </div>
+                  )}
+                  {previdenciaNum > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 12px', background: 'rgba(26,153,85,0.06)', borderRadius: '8px', border: '1px solid rgba(26,153,85,0.2)' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--green)' }}>(-) Previdência disponível para herdeiros</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'var(--green)', fontWeight: 600 }}>- {fmtBRL(previdenciaNum)}</span>
+                    </div>
+                  )}
+                  <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: gapCoberturaMorte > 0 ? 'var(--gold-dim)' : 'rgba(26,153,85,0.07)', borderRadius: '8px', border: gapCoberturaMorte > 0 ? '1.5px solid var(--gold)' : '1.5px solid rgba(26,153,85,0.35)' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-display)', color: gapCoberturaMorte > 0 ? 'var(--gold-light)' : 'var(--green)' }}>
+                      {gapCoberturaMorte > 0 ? 'Gap descoberto' : '✓ Custos totalmente cobertos'}
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', fontWeight: 800, color: gapCoberturaMorte > 0 ? 'var(--gold-light)' : 'var(--green)' }}>{fmtBRL(gapCoberturaMorte)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Pie chart */}
             <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '16px' }}>
               Composição dos custos de inventário
             </div>
@@ -270,7 +371,7 @@ export default function Sucessao({ shared, onDataChange }) {
 
             {regimeCasamento !== 'separacao_total' && (
               <div style={{ marginTop: '16px', padding: '12px 14px', background: 'rgba(74,159,212,0.07)', border: '1px solid rgba(74,159,212,0.2)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.7 }}>
-                ⚖️ <strong style={{ color: 'var(--text)' }}>Meação:</strong> Com regime de {regimeCasamento === 'comunhao_parcial' ? 'comunhão parcial' : 'comunhão universal'}, custos calculados sobre patrimônio inventariável de <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text)' }}>{fmtBRL(calcs.totalInventariavel)}</strong>.
+                ⚖️ <strong style={{ color: 'var(--text)' }}>Meação:</strong> Custos calculados sobre patrimônio inventariável de <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text)' }}>{fmtBRL(calcs.totalInventariavel)}</strong>{previdenciaNum > 0 ? `, já excluída a previdência de ${fmtBRL(previdenciaNum)}` : ''}.
               </div>
             )}
           </Card>
