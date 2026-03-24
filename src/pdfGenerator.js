@@ -34,173 +34,170 @@ export function generatePDF(appData, sections, clientInfo) {
     print-color-adjust:exact;
   }
 
-  @page { margin: 14mm 15mm; size: A4 portrait; }
+  /* margin:0 remove os cabeçalhos do browser (about:blank, data, nº página) */
+  @page { margin: 0; size: A4 portrait; }
 
-  /* ── CAPA ── */
+  /* ── CAPA: ocupa exatamente uma página A4 (297mm × 210mm) ── */
   .cover{
-    background:#1a2744;
-    color:#fff;
-    margin: -14mm -15mm 0 -15mm;
+    background: #1a2744;
+    color: #fff;
+    width: 210mm;
+    height: 297mm;
     padding: 0;
     page-break-after: always;
     break-after: page;
     position: relative;
     overflow: hidden;
-    min-height: 260mm;
     display: flex;
     flex-direction: column;
   }
 
-  /* Padrão geométrico de fundo — círculos e linhas decorativas */
-  .cover-bg{
-    position:absolute;
-    inset:0;
-    overflow:hidden;
-    pointer-events:none;
-  }
-  .cover-bg svg{
-    position:absolute;
-    top:0; right:0;
-    width:320px;
-    opacity:0.07;
-  }
-  .cover-accent-line{
-    position:absolute;
-    bottom:0; left:0; right:0;
-    height:4px;
-    background:linear-gradient(90deg,#c9a84c,#e2c97e,transparent);
+  /* Padrão geométrico decorativo */
+  .cover-geo{
+    position: absolute;
+    top: 0; right: 0;
+    width: 55%;
+    height: 65%;
+    pointer-events: none;
+    opacity: 0.06;
   }
 
-  /* Conteúdo principal da capa */
-  .cover-main{
-    position:relative;
-    z-index:1;
-    padding: 22mm 20mm 10mm;
-    flex:1;
-    display:flex;
-    flex-direction:column;
+  /* Linha dourada inferior da capa */
+  .cover-gold-bar{
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #c9a84c, #e2c97e, transparent);
   }
 
-  .cover-tag{
-    font-family:'Montserrat',sans-serif;
-    font-size:9px;
-    letter-spacing:0.22em;
-    text-transform:uppercase;
-    color:#c9a84c;
-    font-weight:700;
-    margin-bottom:14px;
-    display:flex;
-    align-items:center;
-    gap:8px;
+  /* Área principal da capa */
+  .cover-body{
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 22mm 18mm 16mm;
   }
-  .cover-tag::before{
-    content:'';
-    display:inline-block;
-    width:20px;
-    height:2px;
-    background:#c9a84c;
+
+  .cover-eyebrow{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .cover-eyebrow-line{
+    width: 22px;
+    height: 2px;
+    background: #c9a84c;
+    flex-shrink: 0;
+  }
+  .cover-eyebrow-text{
+    font-family: 'Montserrat', sans-serif;
+    font-size: 8.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #c9a84c;
+    font-weight: 700;
   }
 
   .cover-title{
-    font-family:'Montserrat',sans-serif;
-    font-size:38px;
-    font-weight:800;
-    color:#fff;
-    line-height:1.1;
-    margin-bottom:6px;
-    letter-spacing:-0.5px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 42px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.05;
+    letter-spacing: -0.5px;
+    margin-bottom: 0;
   }
-  .cover-title span{
-    color:#c9a84c;
-  }
-
-  .cover-subtitle{
-    font-family:'Montserrat',sans-serif;
-    font-size:13px;
-    font-weight:300;
-    color:rgba(255,255,255,0.45);
-    letter-spacing:0.08em;
-    text-transform:uppercase;
-    margin-bottom:0;
+  .cover-title-gold{
+    color: #c9a84c;
   }
 
-  .cover-divider{
-    width:48px;
-    height:3px;
-    background:linear-gradient(90deg,#c9a84c,transparent);
-    margin:20px 0;
+  .cover-rule{
+    width: 44px;
+    height: 3px;
+    background: linear-gradient(90deg, #c9a84c, transparent);
+    margin: 22px 0;
+    flex-shrink: 0;
   }
 
-  .cover-client-block{
-    margin-top:auto;
-    padding-top:20px;
+  /* Empurra o bloco do cliente para baixo */
+  .cover-spacer{ flex: 1; }
+
+  .cover-client{
+    margin-bottom: 8mm;
   }
-  .cover-hello{
-    font-family:'Montserrat',sans-serif;
-    font-size:20px;
-    color:#fff;
-    font-weight:300;
-    margin-bottom:6px;
-    line-height:1.3;
+  .cover-greeting{
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    font-weight: 300;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 4px;
   }
-  .cover-hello strong{
-    color:#e2c97e;
-    font-weight:800;
-    display:block;
-    font-size:26px;
+  .cover-client-name{
+    font-family: 'Montserrat', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    color: #e2c97e;
+    line-height: 1.15;
+    margin-bottom: 10px;
   }
-  .cover-advisor{
-    font-size:12px;
-    color:rgba(255,255,255,0.4);
-    margin-top:8px;
-    font-style:italic;
+  .cover-advisor-line{
+    font-size: 11.5px;
+    color: rgba(255,255,255,0.38);
+    font-style: italic;
+    margin-bottom: 4px;
   }
-  .cover-date{
-    font-size:11px;
-    color:rgba(255,255,255,0.25);
-    margin-top:4px;
-    font-family:'IBM Plex Mono',monospace;
+  .cover-date-line{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: rgba(255,255,255,0.22);
+    letter-spacing: 0.04em;
   }
 
-  /* Cards dos módulos na capa */
+  /* Cards de módulos na base da capa */
   .cover-modules{
-    position:relative;
-    z-index:1;
-    display:grid;
-    grid-template-columns:1fr 1fr 1fr;
-    gap:0;
-    border-top:1px solid rgba(255,255,255,0.08);
-    margin-top:24px;
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    border-top: 1px solid rgba(255,255,255,0.1);
   }
-  .cover-module{
-    padding:16px 18px;
-    border-right:1px solid rgba(255,255,255,0.08);
+  .cover-mod{
+    padding: 14px 16px 18px;
+    border-right: 1px solid rgba(255,255,255,0.08);
   }
-  .cover-module:last-child{
-    border-right:none;
+  .cover-mod:last-child{ border-right: none; }
+  .cover-mod-num{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: rgba(201,168,76,0.5);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
   }
-  .cover-module-icon{
-    font-size:18px;
-    margin-bottom:8px;
-    display:block;
+  .cover-mod-title{
+    font-family: 'Montserrat', sans-serif;
+    font-size: 9.5px;
+    font-weight: 700;
+    color: #c9a84c;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 5px;
   }
-  .cover-module-title{
-    font-family:'Montserrat',sans-serif;
-    font-size:10px;
-    font-weight:700;
-    color:#c9a84c;
-    text-transform:uppercase;
-    letter-spacing:0.1em;
-    margin-bottom:5px;
-  }
-  .cover-module-desc{
-    font-size:11px;
-    color:rgba(255,255,255,0.45);
-    line-height:1.6;
-    font-weight:400;
+  .cover-mod-desc{
+    font-size: 10.5px;
+    color: rgba(255,255,255,0.38);
+    line-height: 1.55;
   }
 
-  /* ── Seções ── */
+  /* ── CONTEÚDO (páginas após a capa) ── */
+  /* Como @page margin = 0, o conteúdo precisa de padding próprio */
+  .content{
+    padding: 14mm 15mm 14mm;
+  }
+
   .section{margin-bottom:22px;padding-bottom:8px;border-bottom:1.5px solid #e8edf5;page-break-inside:avoid;break-inside:avoid;}
   .section:last-of-type{border-bottom:none;}
   .section-tag{font-family:'Montserrat',sans-serif;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:#c9a84c;font-weight:700;margin-bottom:5px;}
@@ -260,90 +257,79 @@ export function generatePDF(appData, sections, clientInfo) {
 </head>
 <body>
 
-<!-- ═══════════ CAPA ═══════════ -->
+<!-- ══════════════ CAPA ══════════════ -->
 <div class="cover">
 
-  <!-- Padrão geométrico decorativo -->
-  <div class="cover-bg">
-    <svg viewBox="0 0 400 500" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <!-- Círculos concêntricos -->
-      <circle cx="340" cy="80" r="220" stroke="white" stroke-width="1"/>
-      <circle cx="340" cy="80" r="170" stroke="white" stroke-width="0.8"/>
-      <circle cx="340" cy="80" r="120" stroke="white" stroke-width="0.6"/>
-      <circle cx="340" cy="80" r="70" stroke="white" stroke-width="0.5"/>
-      <!-- Linhas diagonais -->
-      <line x1="0" y1="200" x2="400" y2="0" stroke="white" stroke-width="0.5"/>
-      <line x1="0" y1="280" x2="400" y2="80" stroke="white" stroke-width="0.5"/>
-      <line x1="0" y1="360" x2="400" y2="160" stroke="white" stroke-width="0.5"/>
-      <!-- Grid de pontos -->
-      <circle cx="20" cy="420" r="2" fill="white"/>
-      <circle cx="60" cy="420" r="2" fill="white"/>
-      <circle cx="100" cy="420" r="2" fill="white"/>
-      <circle cx="140" cy="420" r="2" fill="white"/>
-      <circle cx="20" cy="460" r="2" fill="white"/>
-      <circle cx="60" cy="460" r="2" fill="white"/>
-      <circle cx="100" cy="460" r="2" fill="white"/>
-      <circle cx="140" cy="460" r="2" fill="white"/>
-      <circle cx="20" cy="500" r="2" fill="white"/>
-      <circle cx="60" cy="500" r="2" fill="white"/>
-      <circle cx="100" cy="500" r="2" fill="white"/>
-      <circle cx="140" cy="500" r="2" fill="white"/>
-    </svg>
-    <div class="cover-accent-line"></div>
-  </div>
+  <!-- Fundo geométrico SVG -->
+  <svg class="cover-geo" viewBox="0 0 400 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="360" cy="60" r="260" stroke="white" stroke-width="1.2"/>
+    <circle cx="360" cy="60" r="200" stroke="white" stroke-width="0.9"/>
+    <circle cx="360" cy="60" r="140" stroke="white" stroke-width="0.7"/>
+    <circle cx="360" cy="60" r="80" stroke="white" stroke-width="0.5"/>
+    <circle cx="360" cy="60" r="30" stroke="white" stroke-width="0.4"/>
+    <line x1="0" y1="180" x2="420" y2="0" stroke="white" stroke-width="0.5"/>
+    <line x1="0" y1="260" x2="420" y2="80" stroke="white" stroke-width="0.4"/>
+    <line x1="0" y1="340" x2="420" y2="160" stroke="white" stroke-width="0.4"/>
+  </svg>
 
-  <!-- Conteúdo principal -->
-  <div class="cover-main">
-    <div class="cover-tag">Planejamento Patrimonial</div>
+  <div class="cover-gold-bar"></div>
+
+  <!-- Corpo da capa -->
+  <div class="cover-body">
+    <div class="cover-eyebrow">
+      <div class="cover-eyebrow-line"></div>
+      <div class="cover-eyebrow-text">Planejamento Patrimonial</div>
+    </div>
 
     <div class="cover-title">
       Relatório<br/>
       Financeiro<br/>
-      <span>Patrimonial</span>
+      <span class="cover-title-gold">Patrimonial</span>
     </div>
 
-    <div class="cover-divider"></div>
+    <div class="cover-rule"></div>
 
-    <div class="cover-client-block">
+    <div class="cover-spacer"></div>
+
+    <div class="cover-client">
       ${info.clientName ? `
-      <div class="cover-hello">
-        Olá,
-        <strong>${info.clientName}</strong>
-      </div>` : `
-      <div class="cover-hello" style="color:rgba(255,255,255,0.3);font-size:14px;">
-        Relatório de Planejamento Financeiro
-      </div>`}
-      ${info.advisorName ? `<div class="cover-advisor">Assessor responsável: ${info.advisorName}</div>` : ''}
-      <div class="cover-date">${fmtDate()}</div>
+        <div class="cover-greeting">Olá,</div>
+        <div class="cover-client-name">${info.clientName}</div>
+      ` : ''}
+      ${info.advisorName ? `<div class="cover-advisor-line">Assessor responsável: ${info.advisorName}</div>` : ''}
+      <div class="cover-date-line">${fmtDate()}</div>
     </div>
   </div>
 
-  <!-- Cards dos módulos -->
+  <!-- Módulos na base -->
   <div class="cover-modules">
-    <div class="cover-module">
-      <span class="cover-module-icon">🛡️</span>
-      <div class="cover-module-title">Gestão de Riscos</div>
-      <div class="cover-module-desc">Análise do gap patrimonial e cobertura de invalidez necessária para proteger sua família.</div>
+    <div class="cover-mod">
+      <div class="cover-mod-num">01</div>
+      <div class="cover-mod-title">Gestão de Riscos</div>
+      <div class="cover-mod-desc">Análise do gap patrimonial e da cobertura de invalidez necessária para proteger sua família.</div>
     </div>
-    <div class="cover-module">
-      <span class="cover-module-icon">🏛️</span>
-      <div class="cover-module-title">Sucessão</div>
-      <div class="cover-module-desc">Consolidação do patrimônio inventariável e estimativa dos custos de inventário por regime matrimonial.</div>
+    <div class="cover-mod">
+      <div class="cover-mod-num">02</div>
+      <div class="cover-mod-title">Sucessão</div>
+      <div class="cover-mod-desc">Consolidação do patrimônio inventariável e estimativa dos custos de inventário por regime matrimonial.</div>
     </div>
-    <div class="cover-module">
-      <span class="cover-module-icon">📊</span>
-      <div class="cover-module-title">Tributário</div>
-      <div class="cover-module-desc">Benefício fiscal do PGBL, economia no IR e projeção patrimonial com rentabilidade real de 4% a.a.</div>
+    <div class="cover-mod">
+      <div class="cover-mod-num">03</div>
+      <div class="cover-mod-title">Tributário</div>
+      <div class="cover-mod-desc">Benefício fiscal do PGBL, economia no IR e projeção patrimonial com rentabilidade real de 4% a.a.</div>
     </div>
   </div>
 
 </div>
-<!-- ═══════════ FIM CAPA ═══════════ -->
+<!-- ══════════════ FIM CAPA ══════════════ -->
+
+<!-- ══════════════ CONTEÚDO ══════════════ -->
+<div class="content">
 
 <!-- RISCOS -->
 <div class="section">
   <div class="section-tag">Módulo 01</div>
-  <div class="section-title">🛡️ Gestão de Riscos</div>
+  <div class="section-title">Gestão de Riscos</div>
   ${riscos ? `
   <div class="grid3 nb">
     <div class="card">
@@ -357,7 +343,7 @@ export function generatePDF(appData, sections, clientInfo) {
     <div class="${(riscos.gapDescoberto || 0) > 0 ? 'card card-gold' : 'card card-green'}">
       <div class="card-label">Gap descoberto</div>
       <div class="card-value">${fmtBRLShort(riscos.gapDescoberto || 0)}</div>
-      <div class="card-sub">${(riscos.gapDescoberto || 0) > 0 ? 'Cobertura adicional necessária' : 'Cobertura suficiente ✓'}</div>
+      <div class="card-sub">${(riscos.gapDescoberto || 0) > 0 ? 'Cobertura adicional necessária' : 'Cobertura suficiente'}</div>
     </div>
   </div>
 
@@ -374,7 +360,7 @@ export function generatePDF(appData, sections, clientInfo) {
     <div class="wf-divider"></div>
     <div class="wf-row ${(riscos.gapDescoberto || 0) > 0 ? 'wf-gold' : 'wf-green'}">
       <span class="wf-total-label" style="color:${(riscos.gapDescoberto || 0) > 0 ? '#8a5c10' : '#15803d'}">
-        ${(riscos.gapDescoberto || 0) > 0 ? 'Gap descoberto' : '✓ Cobertura suficiente'}
+        ${(riscos.gapDescoberto || 0) > 0 ? 'Gap descoberto' : 'Cobertura suficiente'}
       </span>
       <span class="wf-value" style="color:${(riscos.gapDescoberto || 0) > 0 ? '#8a5c10' : '#15803d'}">${fmtBRL(riscos.gapDescoberto || 0)}</span>
     </div>
@@ -393,7 +379,7 @@ export function generatePDF(appData, sections, clientInfo) {
 
   ${(riscos.gapDescoberto || 0) > 0 ? `
   <div class="insight">
-    💡 ${(riscos.coberturaContratada || 0) > 0
+    ${(riscos.coberturaContratada || 0) > 0
       ? `Considerando a cobertura já contratada de <strong>${fmtBRL(riscos.coberturaContratada)}</strong>, ainda há um gap descoberto de <strong>${fmtBRL(riscos.gapDescoberto)}</strong> a ser coberto com seguro adicional de invalidez ou vida.`
       : `Para garantir que sua família mantenha o padrão de vida em caso de invalidez, recomenda-se uma cobertura de <strong>${fmtBRL(riscos.coberturaNecessaria || 0)}</strong>, correspondente ao gap entre o patrimônio atual e a meta de aposentadoria.`
     }
@@ -404,7 +390,7 @@ export function generatePDF(appData, sections, clientInfo) {
 <!-- SUCESSÃO -->
 <div class="section">
   <div class="section-tag">Módulo 02</div>
-  <div class="section-title">🏛️ Planejamento Sucessório</div>
+  <div class="section-title">Planejamento Sucessório</div>
   ${sucessao ? `
   <div class="nb">
     <table style="margin-bottom:12px;">
@@ -416,16 +402,16 @@ export function generatePDF(appData, sections, clientInfo) {
   <div class="nb">
     <table>
       <thead><tr>
-        <th>Imóvel</th><th>Tipo</th>
-        ${sucessao.regimeCasamento === 'comunhao_parcial' ? '<th>Aquisição</th>' : ''}
-        <th class="right">Valor</th><th class="right">Inventariável</th>
+        <th>Imovel</th><th>Tipo</th>
+        ${sucessao.regimeCasamento === 'comunhao_parcial' ? '<th>Aquisicao</th>' : ''}
+        <th class="right">Valor</th><th class="right">Inventariavel</th>
       </tr></thead>
       <tbody>
       ${sucessao.imoveis.map(function(im, i) {
         const val = im.valor ? (parseInt(im.valor) / 100) : 0
         const frac = sucessao.regimeCasamento === 'separacao_total' ? 1 : (sucessao.regimeCasamento === 'comunhao_universal' ? 0.5 : (im.antesCasamento ? 1 : 0.5))
         return `<tr>
-          <td>Imóvel ${i + 1}</td>
+          <td>Imovel ${i + 1}</td>
           <td style="text-transform:capitalize">${im.tipo || '—'}</td>
           ${sucessao.regimeCasamento === 'comunhao_parcial' ? `<td>${im.antesCasamento ? 'Antes' : 'Depois'} do casamento</td>` : ''}
           <td class="right mono">${fmtBRL(val)}</td>
@@ -439,18 +425,18 @@ export function generatePDF(appData, sections, clientInfo) {
   ${sucessao.veiculos && sucessao.veiculos.some(function(ve) { return ve.valor }) ? `
   <div class="nb">
     <table>
-      <thead><tr><th>Veículo</th><th>Tipo</th><th class="right">Valor</th></tr></thead>
+      <thead><tr><th>Veiculo</th><th>Tipo</th><th class="right">Valor</th></tr></thead>
       <tbody>
       ${sucessao.veiculos.map(function(ve, i) {
         const val = ve.valor ? (parseInt(ve.valor) / 100) : 0
-        return `<tr><td>Veículo ${i + 1}</td><td style="text-transform:capitalize">${ve.tipo || '—'}</td><td class="right mono">${fmtBRL(val)}</td></tr>`
+        return `<tr><td>Veiculo ${i + 1}</td><td style="text-transform:capitalize">${ve.tipo || '—'}</td><td class="right mono">${fmtBRL(val)}</td></tr>`
       }).join('')}
       </tbody>
     </table>
   </div>` : ''}
 
   <div class="nb" style="margin:14px 0 10px;">
-    <div style="font-family:'Montserrat',sans-serif;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#6a8090;font-weight:700;margin-bottom:8px;">Composição do patrimônio</div>
+    <div style="font-family:'Montserrat',sans-serif;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#6a8090;font-weight:700;margin-bottom:8px;">Composicao do patrimônio</div>
     <div class="wf-row wf-normal">
       <span>Patrimônio bruto (sem previdência)</span>
       <span class="wf-value">${fmtBRL((sucessao.totais.totalBruto || 0) - (sucessao.previdenciaNum || 0))}</span>
@@ -502,7 +488,7 @@ export function generatePDF(appData, sections, clientInfo) {
     <div class="wf-divider"></div>
     <div class="wf-row ${(sucessao.totais.gapCoberturaMorte || 0) > 0 ? 'wf-gold' : 'wf-green'}">
       <span class="wf-total-label" style="color:${(sucessao.totais.gapCoberturaMorte || 0) > 0 ? '#8a5c10' : '#15803d'}">
-        ${(sucessao.totais.gapCoberturaMorte || 0) > 0 ? 'Gap descoberto' : '✓ Custos totalmente cobertos'}
+        ${(sucessao.totais.gapCoberturaMorte || 0) > 0 ? 'Gap descoberto' : 'Custos totalmente cobertos'}
       </span>
       <span class="wf-value" style="color:${(sucessao.totais.gapCoberturaMorte || 0) > 0 ? '#8a5c10' : '#15803d'}">${fmtBRL(sucessao.totais.gapCoberturaMorte || 0)}</span>
     </div>
@@ -525,7 +511,7 @@ export function generatePDF(appData, sections, clientInfo) {
 <!-- PGBL -->
 <div class="section">
   <div class="section-tag">Módulo 03</div>
-  <div class="section-title">📊 PGBL & Planejamento Tributário</div>
+  <div class="section-title">PGBL & Planejamento Tributário</div>
   ${pgbl ? `
   <div class="grid2 nb">
     <div class="card">
@@ -549,7 +535,7 @@ export function generatePDF(appData, sections, clientInfo) {
   </div>
 
   <div class="insight">
-    💡 Ao contribuir com <strong>${fmtBRL(pgbl.pgblIdeal || 0)}</strong>/ano no PGBL (12% da renda bruta), você deduz da base de cálculo do IR. Com alíquota marginal de <strong>${((pgbl.aliquotaMarginal || 0) * 100).toFixed(1)}%</strong>, economia fiscal de <strong>${fmtBRL(pgbl.economiaAnual || 0)}/ano</strong>. Projeção com rentabilidade real de 4% a.a.
+    Ao contribuir com <strong>${fmtBRL(pgbl.pgblIdeal || 0)}</strong>/ano no PGBL (12% da renda bruta), você deduz da base de cálculo do IR. Com alíquota marginal de <strong>${((pgbl.aliquotaMarginal || 0) * 100).toFixed(1)}%</strong>, a economia fiscal é de <strong>${fmtBRL(pgbl.economiaAnual || 0)}/ano</strong>. Projeção com rentabilidade real de 4% a.a.
   </div>
 
   ${pgbl.projecao && pgbl.projecao.length > 0 ? `
@@ -588,6 +574,8 @@ export function generatePDF(appData, sections, clientInfo) {
 <div class="footer">
   Relatório gerado em ${fmtDate()} · Projeções com caráter ilustrativo · 4% a.a. real (sem projeção de inflação)
 </div>
+
+</div><!-- fim .content -->
 
 <script>window.onload = function() { window.print() }</script>
 </body>
