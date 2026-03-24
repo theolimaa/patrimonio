@@ -7,13 +7,13 @@ import PGBL from './pages/PGBL'
 
 export default function App() {
   const [theme, setTheme] = useState('light')
+  const [clientInfo, setClientInfo] = useState({ clientName: '', advisorName: '' })
 
   const [shared, setShared] = useState({
     patrimonioFinanceiro: 0,
     patrimonioAposentadoria: 0,
   })
 
-  // Centralized data for PDF generation
   const [appData, setAppData] = useState({
     riscos: null,
     sucessao: null,
@@ -35,7 +35,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route element={<Layout theme={theme} onToggleTheme={toggleTheme} appData={appData} />}>
+        <Route element={<Layout theme={theme} onToggleTheme={toggleTheme} appData={appData} clientInfo={clientInfo} />}>
           <Route path="/" element={<Navigate to="/riscos" replace />} />
           <Route
             path="/riscos"
@@ -43,6 +43,8 @@ export default function App() {
               <Riscos
                 shared={shared}
                 setShared={setShared}
+                clientInfo={clientInfo}
+                onClientInfoChange={setClientInfo}
                 onDataChange={function(d) { updateAppData('riscos', d) }}
               />
             }
