@@ -27,6 +27,23 @@ function Label({ children }) {
   return <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '7px', marginTop: '18px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>{children}</div>
 }
 
+function TextField({ label, value, onChange, placeholder }) {
+  return (
+    <div>
+      {label && <Label>{label}</Label>}
+      <input
+        type="text"
+        value={value}
+        onChange={function(e) { onChange(e.target.value) }}
+        placeholder={placeholder || ''}
+        style={{ width: '100%', background: 'var(--bg-input)', border: '1.5px solid var(--border)', borderRadius: '10px', padding: '13px 16px', color: 'var(--text)', fontSize: '15px', fontFamily: 'var(--font-body)', fontWeight: 500, outline: 'none', transition: 'border-color 0.2s' }}
+        onFocus={function(e) { e.target.style.borderColor = 'var(--gold)' }}
+        onBlur={function(e) { e.target.style.borderColor = 'var(--border)' }}
+      />
+    </div>
+  )
+}
+
 function MoneyField({ label, value, onChange, hint }) {
   return (
     <div>
@@ -66,7 +83,7 @@ function MetricBox({ label, value, accent, sub }) {
   )
 }
 
-export default function Riscos({ shared, setShared, onDataChange }) {
+export default function Riscos({ shared, setShared, clientInfo, onClientInfoChange, onDataChange }) {
   const [patrimonioAtual, setPatrimonioAtual] = useState(numToCents(shared.patrimonioFinanceiro) || '')
   const [patrimonioAposentadoria, setPatrimonioAposentadoria] = useState(numToCents(shared.patrimonioAposentadoria) || '')
 
@@ -86,6 +103,31 @@ export default function Riscos({ shared, setShared, onDataChange }) {
     <div>
       <SectionTitle />
 
+      {/* ── Dados do cliente ── */}
+      <Card>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: '16px', color: 'var(--text)', marginBottom: '6px', fontWeight: 700 }}>
+          Dados do Planejamento
+        </div>
+        <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+          Estas informações aparecerão no relatório PDF.
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <TextField
+            label="Nome do cliente"
+            value={clientInfo.clientName}
+            onChange={function(v) { onClientInfoChange(function(prev) { return { ...prev, clientName: v } }) }}
+            placeholder="Ex: João Silva"
+          />
+          <TextField
+            label="Nome do assessor"
+            value={clientInfo.advisorName}
+            onChange={function(v) { onClientInfoChange(function(prev) { return { ...prev, advisorName: v } }) }}
+            placeholder="Ex: Maria Oliveira"
+          />
+        </div>
+      </Card>
+
+      {/* ── Patrimônio ── */}
       <Card>
         <div style={{ fontFamily: 'var(--font-display)', fontSize: '16px', color: 'var(--text)', marginBottom: '20px', fontWeight: 700 }}>
           Patrimônio Financeiro
