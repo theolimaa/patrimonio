@@ -106,7 +106,7 @@ function DropZone({ files, onAdd, onRemove, label, single }) {
           {files.length ? (single ? files[0].name : files.length + ' arquivo' + (files.length > 1 ? 's' : '') + ' selecionado' + (files.length > 1 ? 's' : '')) : label}
         </div>
         <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-          {single ? 'PDF · o texto será extraído automaticamente' : 'PDF · múltiplos arquivos aceitos · texto extraído automaticamente'}
+          {single ? 'PDF · texto extraído automaticamente' : 'PDF · múltiplos arquivos aceitos'}
         </div>
       </div>
       {files.length > 0 && !single && (
@@ -141,7 +141,6 @@ const INCOME_TYPES = [
 
 const ANOS_OPTIONS = [1, 2, 3, 5, 7, 10, 15, 20, 25, 30]
 
-// Categorias de renda para exibição agrupada
 const CATEGORIAS_RENDA = {
   trabalho: { label: 'Rendimentos do Trabalho', cor: '#4a9fd4' },
   alugueis: { label: 'Aluguéis e Arrendamentos', cor: '#c9a84c' },
@@ -150,12 +149,14 @@ const CATEGORIAS_RENDA = {
   outros: { label: 'Outros Rendimentos', cor: '#e67e22' },
   nao_tributavel: { label: 'Não Tributáveis / Isentos', cor: '#7f8c8d' },
 }
-// Trunca texto mantendo o início e o fim (partes mais importantes do IR)
+
+// Mantém início e fim do texto — partes mais relevantes do IR
 function truncarTexto(texto, maxChars) {
-  if (texto.length <= maxChars) return texto
-  const metade = Math.floor(maxChars / 2)
-  return texto.slice(0, metade) + '\n\n[... texto truncado para caber no limite ...]\n\n' + texto.slice(texto.length - metade)
+  if (!texto || texto.length <= maxChars) return texto
+  const parte = Math.floor(maxChars / 2)
+  return texto.slice(0, parte) + '\n[...]\n' + texto.slice(texto.length - parte)
 }
+
 export default function PGBL({ formState, setFormState, onDataChange }) {
   const [loading, setLoading] = React.useState(false)
   const [loadingMsg, setLoadingMsg] = React.useState('')
@@ -215,104 +216,41 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
     try {
       let textoCompleto = ''
 
-for (var i = 0; i < irFile.length; i++) {
-  setLoadingMsg('Lendo declaração IR...')
-  const texto = await extractPdfText(irFile[i])
-  // IR pode ser grande — trunca para 6000 chars
-  textoCompleto += '\n\n=== DECLARAÇÃO DE IMPOSTO DE RENDA ===\n' + truncarTexto(texto, 6000)
-}
+      for (var i = 0; i < irFile.length; i++) {
+        setLoadingMsg('Lendo declaração IR...')
+        const texto = await extractPdfText(irFile[i])
+        // IR pode ser muito grande — limita a 3500 chars preservando início e fim
+        textoCompleto += '\n\n=== DECLARAÇÃO DE IR ===\n' + truncarTexto(texto, 3500)
+      }
 
-for (var j = 0; j < holerites.length; j++) {
-  setLoadingMsg('Lendo holerite ' + (j + 1) + ' de ' + holerites.length + '...')
-  const texto = await extractPdfText(holerites[j])
-  // Holerites são menores — trunca para 3000 chars cada
-  textoCompleto += '\n\n=== HOLERITE ' + (j + 1) + ' ===\n' + truncarTexto(texto, 3000)
-}
+      for (var j = 0; j < holerites.length; j++) {
+        setLoadingMsg('Lendo holerite ' + (j + 1) + ' de ' + holerites.length + '...')
+        const texto = await extractPdfText(holerites[j])
+        // Holerites: 2000 chars cada
+        textoCompleto += '\n\n=== HOLERITE ' + (j + 1) + ' ===\n' + truncarTexto(texto, 2000)
+      }
+
+      // Garante que o texto total não passe de 5500 chars
+      if (textoCompleto.length > 5500) {
+        textoCompleto = truncarTexto(textoCompleto, 5500)
+      }
 
       setLoadingMsg('Analisando com IA...')
 
-      const prompt = `Você é um especialista tributário brasileiro. Analise os documentos abaixo com máximo detalhamento e identifique TODAS as fontes de renda e descontos.
+      const prompt = `Especialista tributário BR. Analise os documentos e extraia JSON puro.
 
-═══ RENDIMENTOS — identifique e categorize cada um ═══
+Rendimentos tributáveis: salário, 13º, férias+1/3, pró-labore, bônus folha, aluguéis PF, JCP, pensão alimentícia recebida.
+Não tributáveis: dividendos, PLR, FGTS, indenização trabalhista, seguro-desemprego, herança/doação.
+Descontos: INSS, IRRF, previdência corporativa (qualquer nome: Prev, PGBL corp, Fundo Pensão).
+Se múltiplos holerites, some os valores anuais.
 
-CATEGORIA "trabalho":
-- Salário, ordenado, remuneração CLT → TRIBUTÁVEL
-- 13º salário → TRIBUTÁVEL
-- Férias e 1/3 constitucional → TRIBUTÁVEL
-- Pró-labore de sócios → TRIBUTÁVEL
-- Bônus, gratificações, prêmios pagos via folha → TRIBUTÁVEL
-- Horas extras, adicionais (noturno, periculosidade, insalubridade) → TRIBUTÁVEL
-- Comissões → TRIBUTÁVEL
-
-CATEGORIA "alugueis":
-- Aluguéis recebidos de imóveis urbanos na PF → TRIBUTÁVEL
-- Arrendamento rural → TRIBUTÁVEL (com redução de 50% na base)
-- Sublocação → TRIBUTÁVEL
-
-CATEGORIA "investimentos":
-- Rendimentos de renda fixa (CDB, LCI, LCA, Tesouro) → verificar se isento ou tributável conforme prazo
-- Dividendos recebidos → NÃO TRIBUTÁVEL (isentos para PF atualmente)
-- JCP (Juros sobre Capital Próprio) → TRIBUTÁVEL (tributação exclusiva na fonte)
-- Ganho de capital na venda de bens → TRIBUTÁVEL (tributação exclusiva)
-- Rendimentos de fundos de investimento → verificar tipo
-
-CATEGORIA "empresa":
-- Pró-labore → TRIBUTÁVEL
-- Lucros e dividendos distribuídos → NÃO TRIBUTÁVEL
-
-CATEGORIA "outros":
-- Pensão alimentícia recebida → TRIBUTÁVEL
-- Rendimentos do exterior → TRIBUTÁVEL
-- Prêmios de loteria, sorteios → TRIBUTÁVEL (tributação exclusiva 30%)
-- Heranças e doações recebidas → NÃO TRIBUTÁVEL (mas sujeito ao ITCMD)
-- Indenizações trabalhistas → NÃO TRIBUTÁVEL
-- FGTS recebido → NÃO TRIBUTÁVEL
-- Seguro-desemprego → NÃO TRIBUTÁVEL
-- PLR / Participação nos Lucros → NÃO TRIBUTÁVEL (tabela exclusiva)
-- Bolsas de estudo e pesquisa → NÃO TRIBUTÁVEL
-
-═══ DESCONTOS — identifique todos ═══
-- INSS: previdência social obrigatória
-- IRRF: imposto retido na fonte
-- PREVIDÊNCIA CORPORATIVA / COMPLEMENTAR: qualquer desconto com nome como "Prev", "Previdência", "PGBL", "VGBL", "Fundo de Pensão", "Contribuição Previdenciária" — some o valor anual
-
-Se houver múltiplos holerites, some tudo para totais anuais.
-Se for declaração de IR, extraia os valores de cada ficha de rendimentos.
-
-Responda SOMENTE JSON puro, sem texto antes ou depois:
-{
-  "rendaMensalTributavel": número (média mensal da renda tributável),
-  "rendaAnualTributavel": número (total anual tributável),
-  "rendaAnualNaoTributavel": número (total anual não tributável),
-  "inss": número (total INSS anual),
-  "irrf": número (total IRRF anual),
-  "meses": número (meses identificados),
-  "previdenciaCorpMensal": número (0 se não encontrado),
-  "previdenciaCorpAnual": número (0 se não encontrado),
-  "nomePrevidenciaCorp": "nome do plano ou null",
-  "fontes": [
-    {
-      "descricao": "nome detalhado da fonte de renda (ex: Aluguel — Apartamento Rua X, Salário CLT — Empresa Y, Dividendos — Empresa Z)",
-      "valor": número anual,
-      "tributavel": boolean,
-      "categoria": "trabalho | alugueis | investimentos | empresa | outros | nao_tributavel",
-      "observacao": "nota opcional sobre tributação específica ou null"
-    }
-  ],
-  "descontos": [
-    {
-      "descricao": "nome do desconto",
-      "valor": número anual,
-      "tipo": "inss | irrf | previdencia_corp | outros"
-    }
-  ],
-  "observacoes": "resumo geral em até 3 frases destacando pontos importantes"
-}
+Responda SOMENTE JSON:
+{"rendaMensalTributavel":número,"rendaAnualTributavel":número,"rendaAnualNaoTributavel":número,"inss":número,"irrf":número,"meses":número,"previdenciaCorpMensal":número,"previdenciaCorpAnual":número,"nomePrevidenciaCorp":"string ou null","fontes":[{"descricao":"string detalhado","valor":número,"tributavel":boolean,"categoria":"trabalho|alugueis|investimentos|empresa|outros|nao_tributavel","observacao":"string ou null"}],"descontos":[{"descricao":"string","valor":número,"tipo":"inss|irrf|previdencia_corp|outros"}],"observacoes":"string"}
 
 DOCUMENTOS:
 ${textoCompleto}`
 
-      const raw = await callClaude([{ role: 'user', content: prompt }], 1200)
+      const raw = await callClaude([{ role: 'user', content: prompt }], 1000)
       const clean = raw.replace(/```json|```/g, '').trim()
       const si = clean.indexOf('{'), ei = clean.lastIndexOf('}')
       const parsed = JSON.parse(si >= 0 ? clean.slice(si, ei + 1) : clean)
@@ -330,7 +268,6 @@ ${textoCompleto}`
         fontes: parsed.fontes || [],
         descontos: parsed.descontos || [],
         observacoes: parsed.observacoes || '',
-        // compatibilidade com campo antigo
         itens: (parsed.fontes || []).map(function(f) { return { descricao: f.descricao, valor: f.valor, tributavel: f.tributavel } }),
       })
     } catch (err) { setError('Erro: ' + err.message) }
@@ -384,14 +321,14 @@ ${textoCompleto}`
           <Card>
             <CardTitle>Holerites</CardTitle>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.7 }}>
-              Envie os holerites em PDF — a IA identifica todos os rendimentos, descontos e eventuais contribuições à previdência corporativa.
+              Envie os holerites em PDF — a IA identifica rendimentos, descontos e previdência corporativa.
             </div>
             <DropZone files={holerites} onAdd={function(arr) { upd('holerites')(holerites.concat(arr)) }} onRemove={function(idx) { upd('holerites')(holerites.filter(function(_, j) { return j !== idx })) }} label="Clique ou arraste os holerites aqui" />
           </Card>
           <Card>
             <CardTitle>Declaração de IR (opcional)</CardTitle>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.7 }}>
-              A declaração complementa com rendimentos de outras fontes — aluguéis, investimentos, pró-labore, dividendos, etc.
+              Complementa com aluguéis, investimentos, dividendos e demais rendimentos declarados.
             </div>
             <DropZone files={irFile} onAdd={function(arr) { upd('irFile')([arr[0]]) }} onRemove={function() { upd('irFile')([]) }} label="Clique ou arraste a declaração aqui" single={true} />
           </Card>
@@ -409,7 +346,6 @@ ${textoCompleto}`
               <Card style={{ marginTop: '16px', borderColor: 'rgba(26,153,85,0.4)' }}>
                 <CardTitle>Dados extraídos</CardTitle>
 
-                {/* Resumo numérico */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '20px' }}>
                   {[
                     ['Renda tributável mensal', fmtBRL(extracted.rendaMensal)],
@@ -428,7 +364,6 @@ ${textoCompleto}`
                   })}
                 </div>
 
-                {/* Previdência corporativa */}
                 {extracted.previdenciaCorpAnual > 0 && (
                   <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: '10px', padding: '14px 16px', marginBottom: '20px' }}>
                     <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--gold)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '10px' }}>
@@ -454,19 +389,14 @@ ${textoCompleto}`
                   </div>
                 )}
 
-                {/* Fontes de renda agrupadas por categoria */}
                 {extracted.fontes && extracted.fontes.length > 0 && (
                   <div style={{ marginBottom: '20px' }}>
                     <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '12px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>
                       Fontes de Renda Identificadas
                     </div>
-
-                    {/* Agrupa por categoria */}
                     {Object.keys(CATEGORIAS_RENDA).map(function(catKey) {
                       const cat = CATEGORIAS_RENDA[catKey]
-                      const itens = extracted.fontes.filter(function(f) {
-                        return (f.categoria === catKey) || (catKey === 'nao_tributavel' && !f.tributavel && !f.categoria)
-                      })
+                      const itens = extracted.fontes.filter(function(f) { return f.categoria === catKey })
                       if (itens.length === 0) return null
                       const total = itens.reduce(function(acc, f) { return acc + (f.valor || 0) }, 0)
                       return (
@@ -485,9 +415,7 @@ ${textoCompleto}`
                                   <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: fonte.tributavel ? cat.cor : 'var(--text-dim)', marginTop: '5px', flexShrink: 0 }} />
                                   <div style={{ flex: 1 }}>
                                     <div style={{ fontSize: '13px', color: 'var(--text)', fontWeight: 500 }}>{fonte.descricao}</div>
-                                    {fonte.observacao && (
-                                      <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px', fontStyle: 'italic' }}>{fonte.observacao}</div>
-                                    )}
+                                    {fonte.observacao && <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px', fontStyle: 'italic' }}>{fonte.observacao}</div>}
                                   </div>
                                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text)', fontWeight: 600 }}>{fmtBRL(fonte.valor)}</div>
@@ -502,27 +430,22 @@ ${textoCompleto}`
                         </div>
                       )
                     })}
-
-                    {/* Totalizador */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '12px' }}>
                       <div style={{ padding: '10px 14px', background: 'var(--gold-dim)', border: '1px solid var(--gold)', borderRadius: '8px' }}>
                         <div style={{ fontSize: '10px', color: 'var(--gold)', fontWeight: 700, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Total tributável</div>
                         <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--gold-light)', fontWeight: 700 }}>{fmtBRL(extracted.rendaAnual)}/ano</div>
                       </div>
                       <div style={{ padding: '10px 14px', background: 'rgba(127,140,141,0.08)', border: '1px solid rgba(127,140,141,0.25)', borderRadius: '8px' }}>
-                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Total isento / não tributável</div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Total isento</div>
                         <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--text)', fontWeight: 700 }}>{fmtBRL(extracted.rendaAnualNaoTributavel)}/ano</div>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Descontos */}
                 {extracted.descontos && extracted.descontos.length > 0 && (
                   <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>
-                      Descontos Identificados
-                    </div>
+                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>Descontos Identificados</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       {extracted.descontos.map(function(desc, idx) {
                         const corTipo = { inss: '#4a9fd4', irrf: '#e74c3c', previdencia_corp: '#c9a84c', outros: '#7f8c8d' }
@@ -556,7 +479,6 @@ ${textoCompleto}`
         <div className="animate-in">
           <Card style={{ borderColor: 'var(--gold)' }}>
             <CardTitle>Análise Tributária</CardTitle>
-
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '16px' }}>
               <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
                 <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '10px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>Renda bruta anual</div>
@@ -567,17 +489,14 @@ ${textoCompleto}`
                 <AliquotaBadge pct={irInfo.aliquotaMarginal} />
               </div>
               <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
-                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '10px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>Limite PGBL (12% da renda)</div>
+                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '10px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>Limite PGBL (12%)</div>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 700 }}>{fmtBRLShort(pgblInfo.pgblIdeal)}/ano</span>
                 <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>{fmtBRLShort(pgblInfo.pgblIdeal / 12)}/mês</div>
               </div>
             </div>
 
-            {/* Waterfall PGBL */}
             <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '18px 20px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '14px' }}>
-                Composição do Limite PGBL
-              </div>
+              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '14px' }}>Composição do Limite PGBL</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                   <span style={{ fontSize: '13px', color: 'var(--text)', fontWeight: 500 }}>Limite dedutível anual (12% da renda bruta)</span>
