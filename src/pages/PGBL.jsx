@@ -150,7 +150,12 @@ const CATEGORIAS_RENDA = {
   outros: { label: 'Outros Rendimentos', cor: '#e67e22' },
   nao_tributavel: { label: 'Não Tributáveis / Isentos', cor: '#7f8c8d' },
 }
-
+// Trunca texto mantendo o início e o fim (partes mais importantes do IR)
+function truncarTexto(texto, maxChars) {
+  if (texto.length <= maxChars) return texto
+  const metade = Math.floor(maxChars / 2)
+  return texto.slice(0, metade) + '\n\n[... texto truncado para caber no limite ...]\n\n' + texto.slice(texto.length - metade)
+}
 export default function PGBL({ formState, setFormState, onDataChange }) {
   const [loading, setLoading] = React.useState(false)
   const [loadingMsg, setLoadingMsg] = React.useState('')
