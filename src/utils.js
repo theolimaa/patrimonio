@@ -102,4 +102,106 @@ export function calcPatrimonioInventariavel(imoveis, patrimonioFinanceiro, veicu
     if (regimeCasamento === 'comunhao_universal') return 0.5
     return item.antesCasamento ? 1.0 : 0.5
   }
-  const totalImoveis = imoveis.reduce(function(ac
+  const totalImoveis = imoveis.reduce(function(acc, im) {
+    return acc + centsToNum(im.valor) * fracaoInventariavel(im)
+  }, 0)
+  const totalVeiculos = veiculos.reduce(function(acc, ve) {
+    return acc + centsToNum(ve.valor)
+  }, 0)
+  let fracaoFinanceiro = 1.0
+  if (regimeCasamento === 'comunhao_universal') fracaoFinanceiro = 0.5
+  if (regimeCasamento === 'comunhao_parcial') fracaoFinanceiro = 0.5
+  const totalFinanceiro = patrimonioFinanceiro * fracaoFinanceiro
+  return {
+    totalImoveis,
+    totalVeiculos,
+    totalFinanceiro,
+    totalInventariavel: totalImoveis + totalVeiculos + totalFinanceiro,
+    totalBruto: imoveis.reduce(function(acc, im) { return acc + centsToNum(im.valor) }, 0) + totalVeiculos + patrimonioFinanceiro,
+  }
+}
+
+// ── File → base64 ────────────────────────────────────────────────────────────
+export function fileToBase64(file) {
+  return new Promise(function(resolve, reject) {
+    const reader = new FileReader()
+    reader.onload = function() { resolve(reader.result.split(',')[1]) }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+// ── PDF text extraction (client-side, no API key needed) ─────────────────────
+export async function extractPdfText(file) {
+  // Imagens: retorna base64 para descrição manual
+  if (file.type.startsWith('image/')) {
+    return new Promise(function(resolve, reject) {
+      const reader = new FileReader()
+      reader.onload = function() {
+        resolve('[IMAGEM: ' + file.name + ' — não é possível extrair texto de imagens sem API de visão]')
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
+  return new Promise(function(resolve, reject) {
+    const reader = new FileReader()
+    reader.onload = async function(e) {
+      try {
+        const typedArray = new Uint8Array(e.target.result)
+
+        if (!window.pdfjsLib) {
+          await new Promise(function(res, rej) {
+            const script = document.createElement('script')
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
+            script.onload = res
+            script.onerror = rej
+            document.head.appendChild(script)
+          })
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+        }
+
+        const pdf = await window.pdfjsLib.getDocument({ data: typedArray }).promise
+        let fullText = ''
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i)
+          const content = await page.getTextContent()
+          const pageText = content.items.map(function(item) { return item.str }).join(' ')
+          fullText += 'Página ' + i + ':\n' + pageText + '\n\n'
+        }
+        resolve(fullText.trim() || 'Não foi possível extrair texto deste PDF.')
+      } catch (err) {
+        resolve('Erro ao ler PDF: ' + err.message)
+      }
+    }
+    reader.onerror = reject
+    reader.readAsArrayBuffer(file)
+  })
+}
+
+// ── Anthropic API call (via proxy) ───────────────────────────────────────────
+export async function callClaude(messages, maxTokens) {
+  const response = await fetch('/api/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: maxTokens || 2000,
+      messages: messages,
+    }),
+  })
+  if (!response.ok) {
+    const txt = await response.text()
+    throw new Error('API error ' + response.status + ': ' + txt.slice(0, 200))
+  }
+  const data = await response.json()
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error))
+  return (data.content || []).map(function(b) { return b.text || '' }).join('')
+}
+
+// ── ID generator ─────────────────────────────────────────────────────────────
+export function genId() {
+  return Math.random().toString(36).slice(2, 9)
+}
