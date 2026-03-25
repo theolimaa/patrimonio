@@ -215,17 +215,19 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
     try {
       let textoCompleto = ''
 
-      for (var i = 0; i < irFile.length; i++) {
-        setLoadingMsg('Lendo declaração IR...')
-        const texto = await extractPdfText(irFile[i])
-        textoCompleto += '\n\n=== DECLARAÇÃO DE IMPOSTO DE RENDA ===\n' + texto
-      }
+for (var i = 0; i < irFile.length; i++) {
+  setLoadingMsg('Lendo declaração IR...')
+  const texto = await extractPdfText(irFile[i])
+  // IR pode ser grande — trunca para 6000 chars
+  textoCompleto += '\n\n=== DECLARAÇÃO DE IMPOSTO DE RENDA ===\n' + truncarTexto(texto, 6000)
+}
 
-      for (var j = 0; j < holerites.length; j++) {
-        setLoadingMsg('Lendo holerite ' + (j + 1) + ' de ' + holerites.length + '...')
-        const texto = await extractPdfText(holerites[j])
-        textoCompleto += '\n\n=== HOLERITE ' + (j + 1) + ' ===\n' + texto
-      }
+for (var j = 0; j < holerites.length; j++) {
+  setLoadingMsg('Lendo holerite ' + (j + 1) + ' de ' + holerites.length + '...')
+  const texto = await extractPdfText(holerites[j])
+  // Holerites são menores — trunca para 3000 chars cada
+  textoCompleto += '\n\n=== HOLERITE ' + (j + 1) + ' ===\n' + truncarTexto(texto, 3000)
+}
 
       setLoadingMsg('Analisando com IA...')
 
