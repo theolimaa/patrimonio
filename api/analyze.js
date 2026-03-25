@@ -15,7 +15,6 @@ export default async function handler(req, res) {
   try {
     const { messages, max_tokens } = req.body
 
-    // Pega só o texto (Groq não suporta imagem/PDF binário)
     const textMessages = messages.map(function(msg) {
       if (typeof msg.content === 'string') {
         return { role: msg.role, content: msg.content }
