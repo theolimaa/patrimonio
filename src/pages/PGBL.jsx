@@ -141,6 +141,16 @@ const INCOME_TYPES = [
 
 const ANOS_OPTIONS = [1, 2, 3, 5, 7, 10, 15, 20, 25, 30]
 
+// Categorias de renda para exibição agrupada
+const CATEGORIAS_RENDA = {
+  trabalho: { label: 'Rendimentos do Trabalho', cor: '#4a9fd4' },
+  alugueis: { label: 'Aluguéis e Arrendamentos', cor: '#c9a84c' },
+  investimentos: { label: 'Investimentos & Aplicações', cor: '#2ecc71' },
+  empresa: { label: 'Rendimentos Empresariais', cor: '#9b59b6' },
+  outros: { label: 'Outros Rendimentos', cor: '#e67e22' },
+  nao_tributavel: { label: 'Não Tributáveis / Isentos', cor: '#7f8c8d' },
+}
+
 export default function PGBL({ formState, setFormState, onDataChange }) {
   const [loading, setLoading] = React.useState(false)
   const [loadingMsg, setLoadingMsg] = React.useState('')
@@ -170,13 +180,9 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
 
   const irInfo = calcIR(rendaMensalNum)
   const pgblInfo = calcPGBL(rendaAnualNum, irInfo.aliquotaMarginal)
-
-  // Previdência corporativa já descontada no holerite
   const previdenciaCorpAnual = extracted ? (extracted.previdenciaCorpAnual || 0) : 0
-  // Quanto ainda pode aportar (limite 12% menos o que já desconta)
   const pgblRestante = Math.max(0, pgblInfo.pgblIdeal - previdenciaCorpAnual)
   const economiaRestante = pgblRestante * irInfo.aliquotaMarginal
-  // Para projeção usa o aporte restante (o que ainda falta aportar)
   const projection = projetarPGBL(pgblRestante, irInfo.aliquotaMarginal, anos)
   const hasData = rendaAnualNum > 0
 
@@ -207,7 +213,7 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
       for (var i = 0; i < irFile.length; i++) {
         setLoadingMsg('Lendo declaração IR...')
         const texto = await extractPdfText(irFile[i])
-        textoCompleto += '\n\n=== DECLARAÇÃO DE IR ===\n' + texto
+        textoCompleto += '\n\n=== DECLARAÇÃO DE IMPOSTO DE RENDA ===\n' + texto
       }
 
       for (var j = 0; j < holerites.length; j++) {
@@ -218,42 +224,88 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
 
       setLoadingMsg('Analisando com IA...')
 
-      const prompt = `Analise os documentos abaixo (holerites e/ou declaração de IR) com atenção especial a TODOS os descontos e contribuições.
+      const prompt = `Você é um especialista tributário brasileiro. Analise os documentos abaixo com máximo detalhamento e identifique TODAS as fontes de renda e descontos.
 
-RENDIMENTOS — critérios de tributação:
-- Salário, pró-labore: TRIBUTÁVEL
-- 13º salário: TRIBUTÁVEL
-- Férias + 1/3 constitucional: TRIBUTÁVEL
-- PLR/Participação nos lucros: NÃO TRIBUTÁVEL (tabela exclusiva)
-- Dividendos: NÃO TRIBUTÁVEL
-- Bônus pago via folha: TRIBUTÁVEL
+═══ RENDIMENTOS — identifique e categorize cada um ═══
 
-DESCONTOS — preste atenção especial a:
-- INSS: desconto obrigatório previdência social
-- IRRF: imposto de renda retido na fonte
-- PREVIDÊNCIA CORPORATIVA / COMPLEMENTAR: qualquer desconto com nome como "Prev", "Previdência", "PGBL", "VGBL", "Fundo de Pensão", "Previdência Complementar", "Contribuição Previdenciária Corporativa" — isso é muito importante pois representa contribuição PGBL já sendo feita pelo colaborador via empresa. Se encontrar, some o valor anual (multiplique o mensal pelos meses identificados).
+CATEGORIA "trabalho":
+- Salário, ordenado, remuneração CLT → TRIBUTÁVEL
+- 13º salário → TRIBUTÁVEL
+- Férias e 1/3 constitucional → TRIBUTÁVEL
+- Pró-labore de sócios → TRIBUTÁVEL
+- Bônus, gratificações, prêmios pagos via folha → TRIBUTÁVEL
+- Horas extras, adicionais (noturno, periculosidade, insalubridade) → TRIBUTÁVEL
+- Comissões → TRIBUTÁVEL
 
-Se houver múltiplos holerites, some tudo para obter totais anuais.
+CATEGORIA "alugueis":
+- Aluguéis recebidos de imóveis urbanos na PF → TRIBUTÁVEL
+- Arrendamento rural → TRIBUTÁVEL (com redução de 50% na base)
+- Sublocação → TRIBUTÁVEL
+
+CATEGORIA "investimentos":
+- Rendimentos de renda fixa (CDB, LCI, LCA, Tesouro) → verificar se isento ou tributável conforme prazo
+- Dividendos recebidos → NÃO TRIBUTÁVEL (isentos para PF atualmente)
+- JCP (Juros sobre Capital Próprio) → TRIBUTÁVEL (tributação exclusiva na fonte)
+- Ganho de capital na venda de bens → TRIBUTÁVEL (tributação exclusiva)
+- Rendimentos de fundos de investimento → verificar tipo
+
+CATEGORIA "empresa":
+- Pró-labore → TRIBUTÁVEL
+- Lucros e dividendos distribuídos → NÃO TRIBUTÁVEL
+
+CATEGORIA "outros":
+- Pensão alimentícia recebida → TRIBUTÁVEL
+- Rendimentos do exterior → TRIBUTÁVEL
+- Prêmios de loteria, sorteios → TRIBUTÁVEL (tributação exclusiva 30%)
+- Heranças e doações recebidas → NÃO TRIBUTÁVEL (mas sujeito ao ITCMD)
+- Indenizações trabalhistas → NÃO TRIBUTÁVEL
+- FGTS recebido → NÃO TRIBUTÁVEL
+- Seguro-desemprego → NÃO TRIBUTÁVEL
+- PLR / Participação nos Lucros → NÃO TRIBUTÁVEL (tabela exclusiva)
+- Bolsas de estudo e pesquisa → NÃO TRIBUTÁVEL
+
+═══ DESCONTOS — identifique todos ═══
+- INSS: previdência social obrigatória
+- IRRF: imposto retido na fonte
+- PREVIDÊNCIA CORPORATIVA / COMPLEMENTAR: qualquer desconto com nome como "Prev", "Previdência", "PGBL", "VGBL", "Fundo de Pensão", "Contribuição Previdenciária" — some o valor anual
+
+Se houver múltiplos holerites, some tudo para totais anuais.
+Se for declaração de IR, extraia os valores de cada ficha de rendimentos.
 
 Responda SOMENTE JSON puro, sem texto antes ou depois:
 {
-  "rendaMensalTributavel": número em reais,
-  "rendaAnualTributavel": número em reais,
-  "rendaAnualNaoTributavel": número em reais,
-  "inss": número total anual,
-  "irrf": número total anual,
-  "meses": número de meses identificados,
-  "previdenciaCorpMensal": número mensal (0 se não encontrado),
-  "previdenciaCorpAnual": número anual somado (0 se não encontrado),
-  "nomePrevidenciaCorp": "nome do plano se encontrado, ou null",
-  "itens": [{"descricao": "string", "valor": número, "tributavel": boolean}],
-  "observacoes": "resumo em até 2 frases"
+  "rendaMensalTributavel": número (média mensal da renda tributável),
+  "rendaAnualTributavel": número (total anual tributável),
+  "rendaAnualNaoTributavel": número (total anual não tributável),
+  "inss": número (total INSS anual),
+  "irrf": número (total IRRF anual),
+  "meses": número (meses identificados),
+  "previdenciaCorpMensal": número (0 se não encontrado),
+  "previdenciaCorpAnual": número (0 se não encontrado),
+  "nomePrevidenciaCorp": "nome do plano ou null",
+  "fontes": [
+    {
+      "descricao": "nome detalhado da fonte de renda (ex: Aluguel — Apartamento Rua X, Salário CLT — Empresa Y, Dividendos — Empresa Z)",
+      "valor": número anual,
+      "tributavel": boolean,
+      "categoria": "trabalho | alugueis | investimentos | empresa | outros | nao_tributavel",
+      "observacao": "nota opcional sobre tributação específica ou null"
+    }
+  ],
+  "descontos": [
+    {
+      "descricao": "nome do desconto",
+      "valor": número anual,
+      "tipo": "inss | irrf | previdencia_corp | outros"
+    }
+  ],
+  "observacoes": "resumo geral em até 3 frases destacando pontos importantes"
 }
 
 DOCUMENTOS:
 ${textoCompleto}`
 
-      const raw = await callClaude([{ role: 'user', content: prompt }], 1500)
+      const raw = await callClaude([{ role: 'user', content: prompt }], 2000)
       const clean = raw.replace(/```json|```/g, '').trim()
       const si = clean.indexOf('{'), ei = clean.lastIndexOf('}')
       const parsed = JSON.parse(si >= 0 ? clean.slice(si, ei + 1) : clean)
@@ -268,8 +320,11 @@ ${textoCompleto}`
         previdenciaCorpMensal: parsed.previdenciaCorpMensal || 0,
         previdenciaCorpAnual: parsed.previdenciaCorpAnual || 0,
         nomePrevidenciaCorp: parsed.nomePrevidenciaCorp || null,
-        itens: parsed.itens || [],
-        observacoes: parsed.observacoes || ''
+        fontes: parsed.fontes || [],
+        descontos: parsed.descontos || [],
+        observacoes: parsed.observacoes || '',
+        // compatibilidade com campo antigo
+        itens: (parsed.fontes || []).map(function(f) { return { descricao: f.descricao, valor: f.valor, tributavel: f.tributavel } }),
       })
     } catch (err) { setError('Erro: ' + err.message) }
     setLoading(false); setLoadingMsg('')
@@ -322,16 +377,20 @@ ${textoCompleto}`
           <Card>
             <CardTitle>Holerites</CardTitle>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.7 }}>
-              Envie os holerites em PDF — o texto é extraído automaticamente e a IA identifica rendimentos, descontos e eventuais contribuições à previdência corporativa.
+              Envie os holerites em PDF — a IA identifica todos os rendimentos, descontos e eventuais contribuições à previdência corporativa.
             </div>
             <DropZone files={holerites} onAdd={function(arr) { upd('holerites')(holerites.concat(arr)) }} onRemove={function(idx) { upd('holerites')(holerites.filter(function(_, j) { return j !== idx })) }} label="Clique ou arraste os holerites aqui" />
           </Card>
           <Card>
             <CardTitle>Declaração de IR (opcional)</CardTitle>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>A declaração complementa com rendimentos de outras fontes.</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.7 }}>
+              A declaração complementa com rendimentos de outras fontes — aluguéis, investimentos, pró-labore, dividendos, etc.
+            </div>
             <DropZone files={irFile} onAdd={function(arr) { upd('irFile')([arr[0]]) }} onRemove={function() { upd('irFile')([]) }} label="Clique ou arraste a declaração aqui" single={true} />
           </Card>
+
           {error && <div style={{ background: 'rgba(204,44,31,0.08)', border: '1px solid rgba(204,44,31,0.25)', borderRadius: '10px', padding: '12px 16px', color: 'var(--red)', fontSize: '13px', marginBottom: '12px' }}>⚠️ {error}</div>}
+
           {loading ? <Spinner msg={loadingMsg || 'Processando...'} sub="Extraindo texto e analisando com IA" /> : (
             <button onClick={processUpload} style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg,#8a6010,var(--gold))', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '15px', fontWeight: 800, cursor: 'pointer', fontFamily: 'var(--font-display)' }}>
               Analisar com IA
@@ -343,7 +402,8 @@ ${textoCompleto}`
               <Card style={{ marginTop: '16px', borderColor: 'rgba(26,153,85,0.4)' }}>
                 <CardTitle>Dados extraídos</CardTitle>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '16px' }}>
+                {/* Resumo numérico */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '20px' }}>
                   {[
                     ['Renda tributável mensal', fmtBRL(extracted.rendaMensal)],
                     ['Renda tributável anual', fmtBRL(extracted.rendaAnual)],
@@ -361,9 +421,9 @@ ${textoCompleto}`
                   })}
                 </div>
 
-                {/* Previdência corporativa detectada */}
+                {/* Previdência corporativa */}
                 {extracted.previdenciaCorpAnual > 0 && (
-                  <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: '10px', padding: '14px 16px', marginBottom: '14px' }}>
+                  <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: '10px', padding: '14px 16px', marginBottom: '20px' }}>
                     <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--gold)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '10px' }}>
                       Previdência Corporativa Identificada
                     </div>
@@ -387,25 +447,95 @@ ${textoCompleto}`
                   </div>
                 )}
 
-                {extracted.itens && extracted.itens.length > 0 && (
-                  <div>
-                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>Composição da renda</div>
-                    {extracted.itens.map(function(item, idx) {
+                {/* Fontes de renda agrupadas por categoria */}
+                {extracted.fontes && extracted.fontes.length > 0 && (
+                  <div style={{ marginBottom: '20px' }}>
+                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '12px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>
+                      Fontes de Renda Identificadas
+                    </div>
+
+                    {/* Agrupa por categoria */}
+                    {Object.keys(CATEGORIAS_RENDA).map(function(catKey) {
+                      const cat = CATEGORIAS_RENDA[catKey]
+                      const itens = extracted.fontes.filter(function(f) {
+                        return (f.categoria === catKey) || (catKey === 'nao_tributavel' && !f.tributavel && !f.categoria)
+                      })
+                      if (itens.length === 0) return null
+                      const total = itens.reduce(function(acc, f) { return acc + (f.valor || 0) }, 0)
                       return (
-                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'var(--bg-input)', borderRadius: '7px', marginBottom: '4px' }}>
-                          <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: item.tributavel ? 'var(--gold)' : 'var(--text-dim)', flexShrink: 0 }} />
-                          <span style={{ flex: 1, fontSize: '13px', color: 'var(--text)' }}>{item.descricao}</span>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 600 }}>{fmtBRL(item.valor)}</span>
-                          <span style={{ fontSize: '10px', color: item.tributavel ? 'var(--gold)' : 'var(--text-dim)', background: item.tributavel ? 'var(--gold-dim)' : 'var(--bg-card)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>
-                            {item.tributavel ? 'Tributável' : 'Não tributável'}
-                          </span>
+                        <div key={catKey} style={{ marginBottom: '12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: cat.cor, flexShrink: 0 }} />
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{cat.label}</span>
+                            </div>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>{fmtBRL(total)}/ano</span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingLeft: '18px' }}>
+                            {itens.map(function(fonte, idx) {
+                              return (
+                                <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '9px 12px', background: 'var(--bg-input)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: fonte.tributavel ? cat.cor : 'var(--text-dim)', marginTop: '5px', flexShrink: 0 }} />
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: '13px', color: 'var(--text)', fontWeight: 500 }}>{fonte.descricao}</div>
+                                    {fonte.observacao && (
+                                      <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px', fontStyle: 'italic' }}>{fonte.observacao}</div>
+                                    )}
+                                  </div>
+                                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text)', fontWeight: 600 }}>{fmtBRL(fonte.valor)}</div>
+                                    <div style={{ fontSize: '10px', marginTop: '2px', color: fonte.tributavel ? cat.cor : 'var(--text-dim)', fontWeight: 600, fontFamily: 'var(--font-display)' }}>
+                                      {fonte.tributavel ? 'Tributável' : 'Isento'}
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
                         </div>
                       )
                     })}
+
+                    {/* Totalizador */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '12px' }}>
+                      <div style={{ padding: '10px 14px', background: 'var(--gold-dim)', border: '1px solid var(--gold)', borderRadius: '8px' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--gold)', fontWeight: 700, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Total tributável</div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--gold-light)', fontWeight: 700 }}>{fmtBRL(extracted.rendaAnual)}/ano</div>
+                      </div>
+                      <div style={{ padding: '10px 14px', background: 'rgba(127,140,141,0.08)', border: '1px solid rgba(127,140,141,0.25)', borderRadius: '8px' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Total isento / não tributável</div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--text)', fontWeight: 700 }}>{fmtBRL(extracted.rendaAnualNaoTributavel)}/ano</div>
+                      </div>
+                    </div>
                   </div>
                 )}
+
+                {/* Descontos */}
+                {extracted.descontos && extracted.descontos.length > 0 && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>
+                      Descontos Identificados
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {extracted.descontos.map(function(desc, idx) {
+                        const corTipo = { inss: '#4a9fd4', irrf: '#e74c3c', previdencia_corp: '#c9a84c', outros: '#7f8c8d' }
+                        const cor = corTipo[desc.tipo] || corTipo.outros
+                        return (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-input)', borderRadius: '7px', border: '1px solid var(--border)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: cor, flexShrink: 0 }} />
+                              <span style={{ fontSize: '13px', color: 'var(--text)' }}>{desc.descricao}</span>
+                            </div>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--red)', fontWeight: 600 }}>- {fmtBRL(desc.valor)}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {extracted.observacoes && (
-                  <div style={{ marginTop: '14px', padding: '12px 14px', background: 'rgba(74,159,212,0.07)', border: '1px solid rgba(74,159,212,0.2)', borderRadius: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>
+                  <div style={{ padding: '12px 14px', background: 'rgba(74,159,212,0.07)', border: '1px solid rgba(74,159,212,0.2)', borderRadius: '8px', fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.7 }}>
                     📌 {extracted.observacoes}
                   </div>
                 )}
@@ -436,7 +566,7 @@ ${textoCompleto}`
               </div>
             </div>
 
-            {/* Waterfall PGBL — mostra o que já tem e o que falta */}
+            {/* Waterfall PGBL */}
             <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '18px 20px', marginBottom: '16px' }}>
               <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '14px' }}>
                 Composição do Limite PGBL
@@ -446,7 +576,6 @@ ${textoCompleto}`
                   <span style={{ fontSize: '13px', color: 'var(--text)', fontWeight: 500 }}>Limite dedutível anual (12% da renda bruta)</span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'var(--text)', fontWeight: 700 }}>{fmtBRL(pgblInfo.pgblIdeal)}</span>
                 </div>
-
                 {previdenciaCorpAnual > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(26,153,85,0.06)', borderRadius: '8px', border: '1px solid rgba(26,153,85,0.2)' }}>
                     <div>
@@ -458,9 +587,7 @@ ${textoCompleto}`
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'var(--green)', fontWeight: 700 }}>- {fmtBRL(previdenciaCorpAnual)}</span>
                   </div>
                 )}
-
                 <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
-
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: pgblRestante > 0 ? 'var(--gold-dim)' : 'rgba(26,153,85,0.07)', borderRadius: '8px', border: pgblRestante > 0 ? '1.5px solid var(--gold)' : '1.5px solid rgba(26,153,85,0.35)' }}>
                   <div>
                     <span style={{ fontSize: '13px', color: pgblRestante > 0 ? 'var(--gold-light)' : 'var(--green)', fontWeight: 700, fontFamily: 'var(--font-display)' }}>
@@ -477,7 +604,6 @@ ${textoCompleto}`
               </div>
             </div>
 
-            {/* Cards de economia */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
               <div style={{ background: 'rgba(26,153,85,0.08)', border: '1px solid rgba(26,153,85,0.3)', borderRadius: '10px', padding: '14px 16px' }}>
                 <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--green)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>Economia fiscal total (100% do limite)</div>
@@ -519,7 +645,6 @@ ${textoCompleto}`
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '20px', lineHeight: 1.7 }}>
               Projeção sobre o <strong style={{ color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>aporte restante de {fmtBRL(pgblRestante / 12)}/mês</strong> · rentabilidade real de 4% a.a. · restituições reinvestidas.
-              {previdenciaCorpAnual > 0 && <span style={{ color: 'var(--text-dim)' }}> (excludes corporative contribution already accounted)</span>}
             </div>
             {projection.length > 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '24px' }}>
@@ -591,7 +716,7 @@ ${textoCompleto}`
             {mode === 'manual' ? 'Informe a renda acima' : 'Envie seus documentos acima'}
           </div>
           <div style={{ fontSize: '14px', maxWidth: '360px', margin: '0 auto', lineHeight: 1.7, color: 'var(--text-dim)' }}>
-            {mode === 'manual' ? 'Insira a renda bruta tributável para ver a análise do PGBL.' : 'Faça upload dos holerites em PDF para análise automática.'}
+            {mode === 'manual' ? 'Insira a renda bruta tributável para ver a análise do PGBL.' : 'Faça upload dos holerites ou declaração de IR para análise automática.'}
           </div>
         </div>
       )}
