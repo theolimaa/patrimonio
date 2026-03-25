@@ -312,7 +312,7 @@ Responda SOMENTE JSON puro, sem texto antes ou depois:
 DOCUMENTOS:
 ${textoCompleto}`
 
-      const raw = await callClaude([{ role: 'user', content: prompt }], 2000)
+      const raw = await callClaude([{ role: 'user', content: prompt }], 1200)
       const clean = raw.replace(/```json|```/g, '').trim()
       const si = clean.indexOf('{'), ei = clean.lastIndexOf('}')
       const parsed = JSON.parse(si >= 0 ? clean.slice(si, ei + 1) : clean)
