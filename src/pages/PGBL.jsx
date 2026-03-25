@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { fmtBRL, fmtBRLShort, parseCents, fromCents, centsToNum, calcIR, calcPGBL, projetarPGBL, fileToBase64, callClaude } from '../utils'
+import { fmtBRL, fmtBRLShort, parseCents, fromCents, centsToNum, calcIR, calcPGBL, projetarPGBL, extractPdfText, callClaude } from '../utils'
 
 function SectionTitle() {
   return (
@@ -105,7 +105,9 @@ function DropZone({ files, onAdd, onRemove, label, single }) {
         <div style={{ fontSize: '13px', fontWeight: 700, color: files.length ? 'var(--green)' : 'var(--text)', marginBottom: '3px', fontFamily: 'var(--font-display)' }}>
           {files.length ? (single ? files[0].name : files.length + ' arquivo' + (files.length > 1 ? 's' : '') + ' selecionado' + (files.length > 1 ? 's' : '')) : label}
         </div>
-        <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>PDF ou imagem{single ? '' : ' · múltiplos arquivos aceitos'}</div>
+        <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+          {single ? 'PDF · o texto será extraído automaticamente' : 'PDF · múltiplos arquivos aceitos · texto extraído automaticamente'}
+        </div>
       </div>
       {files.length > 0 && !single && (
         <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -182,26 +184,39 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
     if (allFiles.length === 0) { setError('Envie ao menos um arquivo.'); return }
     setError(''); setLoading(true)
     try {
-      var content = []
+      let textoCompleto = ''
+
       for (var i = 0; i < irFile.length; i++) {
-        setLoadingMsg('Carregando declaração IR...')
-        const b64 = await fileToBase64(irFile[i])
-        const mime = irFile[i].type || 'application/pdf'
-        content.push(mime === 'application/pdf' ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } } : { type: 'image', source: { type: 'base64', media_type: mime, data: b64 } })
+        setLoadingMsg('Lendo declaração IR...')
+        const texto = await extractPdfText(irFile[i])
+        textoCompleto += '\n\n=== DECLARAÇÃO DE IR ===\n' + texto
       }
+
       for (var j = 0; j < holerites.length; j++) {
-        setLoadingMsg('Carregando holerite ' + (j + 1) + ' de ' + holerites.length + '...')
-        const b64h = await fileToBase64(holerites[j])
-        const mimeh = holerites[j].type || 'application/pdf'
-        content.push(mimeh === 'application/pdf' ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64h } } : { type: 'image', source: { type: 'base64', media_type: mimeh, data: b64h } })
+        setLoadingMsg('Lendo holerite ' + (j + 1) + ' de ' + holerites.length + '...')
+        const texto = await extractPdfText(holerites[j])
+        textoCompleto += '\n\n=== HOLERITE ' + (j + 1) + ' ===\n' + texto
       }
+
       setLoadingMsg('Analisando com IA...')
-      content.push({ type: 'text', text: 'Analise os documentos (holerites e/ou declaração de IR). Some todos os rendimentos e separe tributáveis de não tributáveis.\n\nCritérios:\n- Salário, pró-labore: TRIBUTÁVEL\n- 13º: TRIBUTÁVEL\n- Férias + 1/3: TRIBUTÁVEL\n- PLR/Lucros: NÃO TRIBUTÁVEL\n- Dividendos: NÃO TRIBUTÁVEL\n- Bônus via folha: TRIBUTÁVEL\n\nSe houver múltiplos holerites, some para totais anuais.\n\nResponda SOMENTE JSON puro:\n{"rendaMensalTributavel":número,"rendaAnualTributavel":número,"rendaAnualNaoTributavel":número,"inss":número,"irrf":número,"meses":número,"itens":[{"descricao":"string","valor":número,"tributavel":boolean}],"observacoes":"string"}' })
-      const raw = await callClaude([{ role: 'user', content: content }], 1500)
+
+      const prompt = 'Analise os documentos abaixo (holerites e/ou declaração de IR). Some todos os rendimentos e separe tributáveis de não tributáveis.\n\nCritérios:\n- Salário, pró-labore: TRIBUTÁVEL\n- 13º: TRIBUTÁVEL\n- Férias + 1/3: TRIBUTÁVEL\n- PLR/Lucros: NÃO TRIBUTÁVEL\n- Dividendos: NÃO TRIBUTÁVEL\n- Bônus via folha: TRIBUTÁVEL\n\nSe houver múltiplos holerites, some para totais anuais.\n\nResponda SOMENTE JSON puro, sem texto antes ou depois:\n{"rendaMensalTributavel":número,"rendaAnualTributavel":número,"rendaAnualNaoTributavel":número,"inss":número,"irrf":número,"meses":número,"itens":[{"descricao":"string","valor":número,"tributavel":boolean}],"observacoes":"string"}\n\nDOCUMENTOS:\n' + textoCompleto
+
+      const raw = await callClaude([{ role: 'user', content: prompt }], 1500)
       const clean = raw.replace(/```json|```/g, '').trim()
       const si = clean.indexOf('{'), ei = clean.lastIndexOf('}')
       const parsed = JSON.parse(si >= 0 ? clean.slice(si, ei + 1) : clean)
-      upd('extracted')({ rendaMensal: parsed.rendaMensalTributavel || 0, rendaAnual: parsed.rendaAnualTributavel || 0, rendaAnualNaoTributavel: parsed.rendaAnualNaoTributavel || 0, inss: parsed.inss || 0, irrf: parsed.irrf || 0, meses: parsed.meses || 12, itens: parsed.itens || [], observacoes: parsed.observacoes || '' })
+
+      upd('extracted')({
+        rendaMensal: parsed.rendaMensalTributavel || 0,
+        rendaAnual: parsed.rendaAnualTributavel || 0,
+        rendaAnualNaoTributavel: parsed.rendaAnualNaoTributavel || 0,
+        inss: parsed.inss || 0,
+        irrf: parsed.irrf || 0,
+        meses: parsed.meses || 12,
+        itens: parsed.itens || [],
+        observacoes: parsed.observacoes || ''
+      })
     } catch (err) { setError('Erro: ' + err.message) }
     setLoading(false); setLoadingMsg('')
   }
@@ -210,7 +225,6 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
     <div>
       <SectionTitle />
 
-      {/* Mode toggle */}
       <div style={{ display: 'flex', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '5px', marginBottom: '20px', maxWidth: '460px', boxShadow: 'var(--shadow-card)' }}>
         {[{ key: 'manual', icon: '✏️', label: 'Preencher manualmente' }, { key: 'upload', icon: '📎', label: 'Upload de documentos' }].map(function(opt) {
           const active = mode === opt.key
@@ -252,27 +266,27 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
       {mode === 'upload' && (
         <div>
           <Card>
-            <CardTitle>🧾 Holerites</CardTitle>
+            <CardTitle>Holerites</CardTitle>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.7 }}>
-              Envie quantos holerites quiser — a IA soma os rendimentos e separa tributáveis de não tributáveis.
+              Envie os holerites em PDF — o texto é extraído automaticamente no seu navegador e analisado pela IA.
             </div>
             <DropZone files={holerites} onAdd={function(arr) { upd('holerites')(holerites.concat(arr)) }} onRemove={function(idx) { upd('holerites')(holerites.filter(function(_, j) { return j !== idx })) }} label="Clique ou arraste os holerites aqui" />
           </Card>
           <Card>
-            <CardTitle>📑 Declaração de IR (opcional)</CardTitle>
+            <CardTitle>Declaração de IR (opcional)</CardTitle>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>A declaração complementa com rendimentos de outras fontes.</div>
             <DropZone files={irFile} onAdd={function(arr) { upd('irFile')([arr[0]]) }} onRemove={function() { upd('irFile')([]) }} label="Clique ou arraste a declaração aqui" single={true} />
           </Card>
           {error && <div style={{ background: 'rgba(204,44,31,0.08)', border: '1px solid rgba(204,44,31,0.25)', borderRadius: '10px', padding: '12px 16px', color: 'var(--red)', fontSize: '13px', marginBottom: '12px' }}>⚠️ {error}</div>}
-          {loading ? <Spinner msg={loadingMsg || 'Processando...'} sub="A IA está analisando seus documentos" /> : (
+          {loading ? <Spinner msg={loadingMsg || 'Processando...'} sub="Extraindo texto e analisando com IA" /> : (
             <button onClick={processUpload} style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg,#8a6010,var(--gold))', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '15px', fontWeight: 800, cursor: 'pointer', fontFamily: 'var(--font-display)' }}>
-              🔍 Analisar com IA
+              Analisar com IA
             </button>
           )}
           {extracted && !loading && (
             <div className="animate-in">
               <Card style={{ marginTop: '16px', borderColor: 'rgba(26,153,85,0.4)' }}>
-                <CardTitle>✅ Dados extraídos</CardTitle>
+                <CardTitle>Dados extraídos</CardTitle>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '16px' }}>
                   {[['Renda tributável mensal', fmtBRL(extracted.rendaMensal)], ['Renda tributável anual', fmtBRL(extracted.rendaAnual)], ['Renda não tributável', fmtBRL(extracted.rendaAnualNaoTributavel)], ['INSS retido (ano)', fmtBRL(extracted.inss)], ['IRRF retido (ano)', fmtBRL(extracted.irrf)], ['Meses analisados', extracted.meses + ' meses']].map(function(item) {
                     return (
@@ -310,7 +324,7 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
       {hasData && (
         <div className="animate-in">
           <Card style={{ borderColor: 'var(--gold)' }}>
-            <CardTitle>🧮 Análise Tributária</CardTitle>
+            <CardTitle>Análise Tributária</CardTitle>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '20px' }}>
               {[
                 { label: 'Renda bruta anual', value: <span style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', fontWeight: 700 }}>{fmtBRLShort(rendaAnualNum)}</span> },
@@ -335,7 +349,7 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
 
           <Card>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
-              <CardTitle>📈 Projeção Patrimonial</CardTitle>
+              <CardTitle>Projeção Patrimonial</CardTitle>
               <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                 {ANOS_OPTIONS.map(function(n) {
                   const active = anos === n
@@ -421,7 +435,7 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
             {mode === 'manual' ? 'Informe a renda acima' : 'Envie seus documentos acima'}
           </div>
           <div style={{ fontSize: '14px', maxWidth: '360px', margin: '0 auto', lineHeight: 1.7, color: 'var(--text-dim)' }}>
-            {mode === 'manual' ? 'Insira a renda bruta tributável para ver a análise do PGBL.' : 'Faça upload dos holerites ou da declaração de IR para análise automática.'}
+            {mode === 'manual' ? 'Insira a renda bruta tributável para ver a análise do PGBL.' : 'Faça upload dos holerites em PDF para análise automática.'}
           </div>
         </div>
       )}
