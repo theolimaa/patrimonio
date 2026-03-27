@@ -133,7 +133,6 @@ export function generatePDF(appData, sections, clientInfo) {
 
     <div class="cover-title">
       Relatório<br/>
-      Financeiro<br/>
       <span class="cover-title-gold">Patrimonial</span>
     </div>
 
