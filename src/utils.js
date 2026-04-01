@@ -35,17 +35,47 @@ export function numToCents(n) {
   return String(Math.round((n || 0) * 100))
 }
 
-// ── IR 2024 Table ────────────────────────────────────────────────────────────
+// ── INSS 2024 (tabela progressiva) ───────────────────────────────────────────
+const INSS_FAIXAS = [
+  { limite: 1412.00,  aliquota: 0.075 },
+  { limite: 2666.68,  aliquota: 0.09  },
+  { limite: 4000.03,  aliquota: 0.12  },
+  { limite: 7786.02,  aliquota: 0.14  },
+]
+const INSS_TETO_MENSAL = 908.86
+
+export function calcINSSMensal(salarioBrutoMensal) {
+  const s = salarioBrutoMensal || 0
+  if (s <= 0) return 0
+  let inss = 0
+  let faixaAnterior = 0
+  for (var i = 0; i < INSS_FAIXAS.length; i++) {
+    const f = INSS_FAIXAS[i]
+    if (s > faixaAnterior) {
+      const base = Math.min(s, f.limite) - faixaAnterior
+      inss += base * f.aliquota
+    }
+    faixaAnterior = f.limite
+    if (s <= f.limite) break
+  }
+  return Math.min(inss, INSS_TETO_MENSAL)
+}
+
+export function calcINSSAnual(salarioBrutoMensal, meses) {
+  return calcINSSMensal(salarioBrutoMensal) * (meses || 12)
+}
+
+// ── IR 2024 ──────────────────────────────────────────────────────────────────
 const IR_TABLE = [
-  { limite: 2259.20, aliquota: 0,     deducao: 0 },
-  { limite: 2826.65, aliquota: 0.075, deducao: 169.44 },
-  { limite: 3751.05, aliquota: 0.15,  deducao: 381.44 },
-  { limite: 4664.68, aliquota: 0.225, deducao: 662.77 },
+  { limite: 2259.20,  aliquota: 0,     deducao: 0 },
+  { limite: 2826.65,  aliquota: 0.075, deducao: 169.44 },
+  { limite: 3751.05,  aliquota: 0.15,  deducao: 381.44 },
+  { limite: 4664.68,  aliquota: 0.225, deducao: 662.77 },
   { limite: Infinity, aliquota: 0.275, deducao: 896.00 },
 ]
 
-export function calcIR(rendaBrutaMensal) {
-  const renda = rendaBrutaMensal || 0
+export function calcIR(rendaBaseMensal) {
+  const renda = rendaBaseMensal || 0
   const faixa = IR_TABLE.find(function(f) { return renda <= f.limite }) || IR_TABLE[IR_TABLE.length - 1]
   return {
     aliquotaMarginal: faixa.aliquota,
@@ -55,12 +85,39 @@ export function calcIR(rendaBrutaMensal) {
   }
 }
 
-// ── PGBL Calculations ────────────────────────────────────────────────────────
-export function calcPGBL(rendaBrutaAnual, aliquotaMarginal) {
-  const pgblIdeal = rendaBrutaAnual * 0.12
+// ── PGBL — lógica XP: base = bruta - INSS ────────────────────────────────────
+export function calcPGBL(rendaBrutaAnual, aliquotaMarginal, inssAnual) {
+  const inss = inssAnual || 0
+  const baseLiquida = Math.max(0, rendaBrutaAnual - inss)
+  const pgblIdeal = baseLiquida * 0.12
   const economiaAnual = pgblIdeal * aliquotaMarginal
   const economiaMensal = economiaAnual / 12
-  return { pgblIdeal, economiaAnual, economiaMensal }
+  return { pgblIdeal, economiaAnual, economiaMensal, baseLiquida }
+}
+
+// Comparativo IR sem/com PGBL
+export function calcComparativoIR(rendaBrutaAnual, inssAnual, pgblAporte) {
+  const inss = inssAnual || 0
+  const pgbl = pgblAporte || 0
+  const baseSemPGBL = Math.max(0, rendaBrutaAnual - inss)
+  const baseComPGBL = Math.max(0, baseSemPGBL - pgbl)
+
+  function irAnual(baseAnual) {
+    const baseMensal = baseAnual / 12
+    const faixa = IR_TABLE.find(function(f) { return baseMensal <= f.limite }) || IR_TABLE[IR_TABLE.length - 1]
+    return Math.max(0, baseMensal * faixa.aliquota - faixa.deducao) * 12
+  }
+
+  const irAnualSemPGBL = irAnual(baseSemPGBL)
+  const irAnualComPGBL = irAnual(baseComPGBL)
+
+  return {
+    baseSemPGBL,
+    baseComPGBL,
+    irAnualSemPGBL,
+    irAnualComPGBL,
+    economia: irAnualSemPGBL - irAnualComPGBL,
+  }
 }
 
 export function projetarPGBL(aporteAnual, aliquotaMarginal, anos) {
@@ -131,26 +188,16 @@ export function fileToBase64(file) {
   })
 }
 
-// ── PDF text extraction (client-side, no API key needed) ─────────────────────
+// ── PDF text extraction ───────────────────────────────────────────────────────
 export async function extractPdfText(file) {
-  // Imagens: retorna base64 para descrição manual
   if (file.type.startsWith('image/')) {
-    return new Promise(function(resolve, reject) {
-      const reader = new FileReader()
-      reader.onload = function() {
-        resolve('[IMAGEM: ' + file.name + ' — não é possível extrair texto de imagens sem API de visão]')
-      }
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
+    return '[IMAGEM: ' + file.name + ']'
   }
-
   return new Promise(function(resolve, reject) {
     const reader = new FileReader()
     reader.onload = async function(e) {
       try {
         const typedArray = new Uint8Array(e.target.result)
-
         if (!window.pdfjsLib) {
           await new Promise(function(res, rej) {
             const script = document.createElement('script')
@@ -162,16 +209,14 @@ export async function extractPdfText(file) {
           window.pdfjsLib.GlobalWorkerOptions.workerSrc =
             'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
         }
-
         const pdf = await window.pdfjsLib.getDocument({ data: typedArray }).promise
         let fullText = ''
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i)
           const content = await page.getTextContent()
-          const pageText = content.items.map(function(item) { return item.str }).join(' ')
-          fullText += 'Página ' + i + ':\n' + pageText + '\n\n'
+          fullText += 'Página ' + i + ':\n' + content.items.map(function(item) { return item.str }).join(' ') + '\n\n'
         }
-        resolve(fullText.trim() || 'Não foi possível extrair texto deste PDF.')
+        resolve(fullText.trim() || 'Não foi possível extrair texto.')
       } catch (err) {
         resolve('Erro ao ler PDF: ' + err.message)
       }
@@ -181,7 +226,7 @@ export async function extractPdfText(file) {
   })
 }
 
-// ── Anthropic API call (via proxy) ───────────────────────────────────────────
+// ── API call (via proxy) ──────────────────────────────────────────────────────
 export async function callClaude(messages, maxTokens) {
   const response = await fetch('/api/analyze', {
     method: 'POST',
