@@ -4,44 +4,36 @@ import Layout from './components/Layout'
 import Riscos from './pages/Riscos'
 import Sucessao from './pages/Sucessao'
 import PGBL from './pages/PGBL'
-import { genId } from './utils'
 
 export default function App() {
   const [theme, setTheme] = useState('light')
-  const [clientInfo, setClientInfo] = useState({ clientName: '', advisorName: '' })
 
-  // ── Riscos state ─────────────────────────────────────────────────────────
-  const [riscosState, setRiscosState] = useState({
-    patrimonioAtual: '',
-    patrimonioAposentadoria: '',
-    coberturaContratada: '',
+  const [shared, setShared] = useState({
+    patrimonioFinanceiro: 0,
+    patrimonioAposentadoria: 0,
   })
 
-  // ── Sucessao state ───────────────────────────────────────────────────────
-  const [sucessaoState, setSucessaoState] = useState({
-    regimeCasamento: 'comunhao_parcial',
-    imoveis: [{ id: genId(), tipo: 'residencial', valor: '', antesCasamento: false }],
-    veiculos: [{ id: genId(), tipo: 'carro', valor: '' }],
-    pfManual: '',
-    coberturaJaContratada: '',
-    valorPrevidencia: '',
+  // Centralized data for PDF generation
+  const [appData, setAppData] = useState({
+    riscos: null,
+    sucessao: null,
+    pgbl: null,
   })
 
-  // ── PGBL state ───────────────────────────────────────────────────────────
-  const [pgblState, setPgblState] = useState({
+  const [pgblFormState, setPgblFormState] = useState({
     mode: 'manual',
     rendaMensal: '',
     rendaAnual: '',
     syncFrom: 'mensal',
+    contribuiINSS: false,
+    inssManual: '',
+    inssOverride: false,
     holerites: [],
     irFile: [],
     extracted: null,
     anos: 10,
     showTable: false,
   })
-
-  // ── PDF data ─────────────────────────────────────────────────────────────
-  const [appData, setAppData] = useState({ riscos: null, sucessao: null, pgbl: null })
 
   function updateAppData(module, data) {
     setAppData(function(prev) { return { ...prev, [module]: data } })
@@ -58,23 +50,15 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route element={<Layout theme={theme} onToggleTheme={toggleTheme} appData={appData} clientInfo={clientInfo} />}>
+        <Route element={<Layout theme={theme} onToggleTheme={toggleTheme} appData={appData} />}>
           <Route path="/" element={<Navigate to="/riscos" replace />} />
           <Route
             path="/riscos"
             element={
               <Riscos
-                formState={riscosState}
-                setFormState={setRiscosState}
-                clientInfo={clientInfo}
-                onClientInfoChange={setClientInfo}
+                shared={shared}
+                setShared={setShared}
                 onDataChange={function(d) { updateAppData('riscos', d) }}
-                onSharedChange={function(pf, apos) {
-                  setSucessaoState(function(prev) {
-                    // only update pfManual if user hasn't typed manually there
-                    return prev
-                  })
-                }}
               />
             }
           />
@@ -82,9 +66,7 @@ export default function App() {
             path="/sucessao"
             element={
               <Sucessao
-                formState={sucessaoState}
-                setFormState={setSucessaoState}
-                patrimonioFinanceiroShared={riscosState.patrimonioAtual}
+                shared={shared}
                 onDataChange={function(d) { updateAppData('sucessao', d) }}
               />
             }
@@ -93,8 +75,8 @@ export default function App() {
             path="/pgbl"
             element={
               <PGBL
-                formState={pgblState}
-                setFormState={setPgblState}
+                formState={pgblFormState}
+                setFormState={setPgblFormState}
                 onDataChange={function(d) { updateAppData('pgbl', d) }}
               />
             }
