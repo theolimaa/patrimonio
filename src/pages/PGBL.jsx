@@ -253,13 +253,22 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
       let textoCompleto = ''
       for (var i = 0; i < irFile.length; i++) {
         setLoadingMsg('Lendo declaração IR...')
-        textoCompleto += '\n\n=== DECLARAÇÃO DE IR ===\n' + truncarTexto(await extractPdfText(irFile[i]), 3500)
+        const textoIR = await extractPdfText(irFile[i])
+        // DIRPF: rendimentos ficam no início — pega os primeiros 4000 chars
+        textoCompleto += '\n\n=== DECLARAÇÃO DE IR ===\n' + textoIR.slice(0, 4000)
       }
       for (var j = 0; j < holerites.length; j++) {
         setLoadingMsg('Lendo holerite ' + (j + 1) + ' de ' + holerites.length + '...')
-        textoCompleto += '\n\n=== HOLERITE ' + (j + 1) + ' ===\n' + truncarTexto(await extractPdfText(holerites[j]), 2000)
+        const textoHol = await extractPdfText(holerites[j])
+        textoCompleto += '\n\n=== HOLERITE ' + (j + 1) + ' ===\n' + textoHol.slice(0, 2000)
       }
-      if (textoCompleto.length > 5500) textoCompleto = truncarTexto(textoCompleto, 5500)
+      if (textoCompleto.length > 5500) textoCompleto = textoCompleto.slice(0, 5500)
+
+      // Debug: verifica se extraiu texto
+      if (textoCompleto.replace(/\s/g, '').length < 100) {
+        throw new Error('Não foi possível extrair texto do PDF. O arquivo pode ser uma imagem escaneada. Tente usar o modo "Preencher manualmente".')
+      }
+
       setLoadingMsg('Analisando com IA...')
 
       const prompt = `Você é um extrator de dados tributários. Analise os documentos e retorne APENAS JSON válido, sem texto antes ou depois.
