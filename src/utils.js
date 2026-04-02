@@ -175,7 +175,7 @@ export function calcPatrimonioInventariavel(imoveis, patrimonioFinanceiro, veicu
     return acc + centsToNum(im.valor) * fracaoInventariavel(im)
   }, 0)
   const totalVeiculos = veiculos.reduce(function(acc, ve) {
-    return acc + centsToNum(ve.valor)
+    return acc + centsToNum(ve.valor) * fracaoInventariavel(ve)
   }, 0)
   let fracaoFinanceiro = 1.0
   if (regimeCasamento === 'comunhao_universal') fracaoFinanceiro = 0.5
@@ -186,7 +186,7 @@ export function calcPatrimonioInventariavel(imoveis, patrimonioFinanceiro, veicu
     totalVeiculos,
     totalFinanceiro,
     totalInventariavel: totalImoveis + totalVeiculos + totalFinanceiro,
-    totalBruto: imoveis.reduce(function(acc, im) { return acc + centsToNum(im.valor) }, 0) + totalVeiculos + patrimonioFinanceiro,
+    totalBruto: imoveis.reduce(function(acc, im) { return acc + centsToNum(im.valor) }, 0) + veiculos.reduce(function(acc, ve) { return acc + centsToNum(ve.valor) }, 0) + patrimonioFinanceiro,
   }
 }
 
