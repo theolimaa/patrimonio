@@ -8,7 +8,7 @@ const NAV_ITEMS = [
   { path: '/pgbl', icon: '📊', label: 'Planejamento Tributário', sub: 'Benefício fiscal PGBL' },
 ]
 
-function PDFModal({ appData, onClose }) {
+function PDFModal({ appData, clientInfo, onClose }) {
   const [selected, setSelected] = useState(['riscos', 'sucessao', 'pgbl'])
   const [loading, setLoading] = useState(false)
 
@@ -24,6 +24,7 @@ function PDFModal({ appData, onClose }) {
     setTimeout(function() {
       generatePDF(appData, selected, clientInfo)
       setLoading(false)
+      onClose()
     }, 150)
   }
 
@@ -241,7 +242,7 @@ export default function Layout({ theme, onToggleTheme, appData, clientInfo }) {
       </nav>
 
       {/* ── PDF Modal ── */}
-      {showPDF && <PDFModal appData={appData} onClose={function() { setShowPDF(false) }} />}
+      {showPDF && <PDFModal appData={appData} clientInfo={clientInfo} onClose={function() { setShowPDF(false) }} />}
     </div>
   )
 }
