@@ -3,7 +3,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import {
   fmtBRL, fmtBRLShort, parseCents, fromCents, centsToNum,
   calcIR, calcINSSMensal, calcINSSAnual, calcPGBL, calcComparativoIR,
-  projetarPGBL, extractPdfText, callClaude
+  projetarPGBL, callGeminiPDF, callClaude
 } from '../utils'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -198,63 +198,33 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
 
   // ── UPLOAD DE IR ────────────────────────────────────────────────────────────
   async function analisarIR() {
-    if (irFile.length === 0 && holerites.length === 0) { setError('Envie ao menos um arquivo.'); return }
+    const allFiles = [...irFile, ...holerites]
+    if (allFiles.length === 0) { setError('Envie ao menos um arquivo.'); return }
     setError(''); setLoading(true)
 
     try {
-      // 1. Extrai texto de todos os arquivos
-      let textos = []
-      for (var i = 0; i < irFile.length; i++) {
-        setLoadingMsg('Lendo declaração IR (' + (i + 1) + ')...')
-        const t = await extractPdfText(irFile[i])
-        textos.push({ tipo: 'IR', nome: irFile[i].name, texto: truncar(t, 3500) })
-      }
-      for (var j = 0; j < holerites.length; j++) {
-        setLoadingMsg('Lendo holerite ' + (j + 1) + '...')
-        const t = await extractPdfText(holerites[j])
-        textos.push({ tipo: 'HOLERITE', nome: holerites[j].name, texto: truncar(t, 2000) })
-      }
+      const prompt = `Você é especialista em planejamento tributário brasileiro. Analise este documento (declaração IRPF ou holerite) e retorne APENAS JSON, sem texto antes ou depois.
 
-      // 2. Monta contexto para a IA
-      const contexto = textos.map(function(t) {
-        return '=== ' + t.tipo + ': ' + t.nome + ' ===\n' + t.texto
-      }).join('\n\n')
+Preciso saber:
+1. rendaCompensavelAnual: soma de todos os rendimentos tributáveis compensáveis pelo PGBL (salário, pró-labore, aluguéis, etc). EXCLUIR: 13º salário, PLR, dividendos, rendimentos com tributação exclusiva
+2. inss: total de INSS/contribuição previdenciária descontado no ano
+3. pgblCorporativoAnual: se houver desconto de previdência complementar/PGBL via empresa em folha, o valor anual total
+4. nomePrevidenciaCorp: nome do plano de previdência corporativa se encontrado, ou null
+5. outrasRendas: lista de rendimentos além do salário principal (aluguéis, pró-labore, pensão, etc)
 
-      if (contexto.replace(/\s/g, '').length < 50) {
-        throw new Error('Não foi possível ler o texto do PDF. O arquivo pode ser uma imagem escaneada.')
-      }
+RETORNE SOMENTE ESTE JSON:
+{"rendaCompensavelAnual":0,"inss":0,"pgblCorporativoAnual":0,"nomePrevidenciaCorp":null,"outrasRendas":[{"descricao":"string","valor":0,"tributavel":true}],"observacoes":"string explicando o que encontrou"}`
 
-      setLoadingMsg('Analisando com IA...')
+      setLoadingMsg('Analisando documento com IA...')
 
-      // 3. Prompt focado no que realmente importa
-      const prompt = `Você é especialista em planejamento tributário brasileiro. Analise o(s) documento(s) abaixo e retorne SOMENTE um JSON com os dados para calcular o benefício do PGBL.
+      // Usa o primeiro arquivo (IR tem prioridade)
+      const arquivo = irFile.length > 0 ? irFile[0] : holerites[0]
+      const raw = await callGeminiPDF(arquivo, prompt, 1000)
 
-O que preciso saber:
-1. Renda bruta tributável compensável anual (exclui 13º, PLR, dividendos, FGTS — só o que pode ser deduzido via PGBL)
-2. Se a pessoa já faz aporte em PGBL via empresa/corporativo (plano fechado descontado no holerite)
-3. INSS total anual descontado
-4. Outras rendas tributáveis além do salário (aluguéis, pró-labore, etc)
-
-RETORNE APENAS ESTE JSON, sem texto antes ou depois:
-{
-  "rendaCompensavelAnual": 0,
-  "inss": 0,
-  "pgblCorporativoAnual": 0,
-  "nomePrevidenciaCorp": null,
-  "outrasRendas": [{"descricao": "string", "valor": 0, "tributavel": true}],
-  "observacoes": "string com resumo do que foi encontrado e como chegou nos valores"
-}
-
-DOCUMENTOS:
-${contexto.slice(0, 5000)}`
-
-      const raw = await callClaude([{ role: 'user', content: prompt }], 1000)
-
-      // 4. Parse robusto
       const clean = raw.replace(/```json|```/g, '').trim()
       const si = clean.indexOf('{')
       const ei = clean.lastIndexOf('}')
-      if (si === -1 || ei === -1) throw new Error('A IA não retornou JSON válido. Tente novamente ou use o modo manual.')
+      if (si === -1) throw new Error('Resposta inválida da IA. Tente novamente.')
 
       const parsed = JSON.parse(clean.slice(si, ei + 1))
 
