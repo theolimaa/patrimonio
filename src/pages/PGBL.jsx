@@ -265,20 +265,28 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
       if (textoCompleto.length > 5500) textoCompleto = textoCompleto.slice(0, 5500)
 
       // Debug: verifica se extraiu texto
-      if (textoCompleto.replace(/\s/g, '').length < 100) {
+      const textoLimpo = textoCompleto.replace(/\s/g, '')
+      if (textoLimpo.length < 50) {
         throw new Error('Não foi possível extrair texto do PDF. O arquivo pode ser uma imagem escaneada. Tente usar o modo "Preencher manualmente".')
       }
+      // Guarda amostra do texto extraído para debug
+      console.log('[PGBL] Texto extraído (' + textoCompleto.length + ' chars):', textoCompleto.slice(0, 500))
 
       setLoadingMsg('Analisando com IA...')
 
-      const prompt = `Você é um extrator de dados tributários. Analise os documentos e retorne APENAS JSON válido, sem texto antes ou depois.
+      const prompt = `Você é um especialista em documentos fiscais brasileiros. Analise o texto extraído de um documento (pode ser declaração DIRPF da Receita Federal, holerite ou informe de rendimentos) e extraia os dados financeiros.
 
-REGRAS: Tributáveis: salário, 13º, férias+1/3, pró-labore, bônus folha, aluguéis PF, JCP, pensão alimentícia. Não tributáveis: dividendos, PLR, FGTS, indenização, seguro-desemprego. Descontos: INSS, IRRF, previdência corporativa. Se múltiplos holerites, some os valores. Se não encontrar algum dado, use 0.
+INSTRUÇÕES IMPORTANTES:
+- O texto pode estar desformatado pois foi extraído de PDF — procure por números e palavras-chave mesmo que fora de ordem
+- Na declaração IRPF, procure por: "Rendimentos Tributáveis", "Rendimentos Isentos", "Imposto Retido", "INSS", valores em formato "R$ XX.XXX,XX" ou apenas "XX.XXX,XX"
+- Em holerites, procure por: salário base, INSS descontado, IRRF descontado, verbas/rubricas
+- Se não encontrar um valor específico, use 0 — NUNCA retorne texto onde deveria haver número
+- rendaMensalTributavel = rendaAnualTributavel dividido pelos meses
 
-RETORNE EXATAMENTE ESTE FORMATO JSON:
-{"rendaMensalTributavel":0,"rendaAnualTributavel":0,"rendaAnualNaoTributavel":0,"inss":0,"irrf":0,"meses":12,"previdenciaCorpMensal":0,"previdenciaCorpAnual":0,"nomePrevidenciaCorp":null,"fontes":[{"descricao":"string","valor":0,"tributavel":true,"categoria":"trabalho","observacao":null}],"descontos":[{"descricao":"string","valor":0,"tipo":"inss"}],"observacoes":"string"}
+RETORNE APENAS ESTE JSON SEM NENHUM TEXTO ANTES OU DEPOIS:
+{"rendaMensalTributavel":0,"rendaAnualTributavel":0,"rendaAnualNaoTributavel":0,"inss":0,"irrf":0,"meses":12,"previdenciaCorpMensal":0,"previdenciaCorpAnual":0,"nomePrevidenciaCorp":null,"fontes":[{"descricao":"nome da fonte de renda","valor":0,"tributavel":true,"categoria":"trabalho","observacao":null}],"descontos":[{"descricao":"nome do desconto","valor":0,"tipo":"inss"}],"observacoes":"resumo do que foi encontrado"}
 
-DOCUMENTOS:
+TEXTO DO DOCUMENTO:
 ${textoCompleto}`
 
       const raw = await callClaude([{ role: 'user', content: prompt }], 1200)
