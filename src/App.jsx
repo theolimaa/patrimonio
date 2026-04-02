@@ -41,6 +41,7 @@ export default function App() {
     holerites: [],
     irFile: [],
     extracted: null,
+    irAnalise: null,
     anos: 10,
     showTable: false,
   })
