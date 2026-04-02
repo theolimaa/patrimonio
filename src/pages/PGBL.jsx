@@ -163,6 +163,8 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
   const [loading, setLoading] = React.useState(false)
   const [loadingMsg, setLoadingMsg] = React.useState('')
   const [error, setError] = React.useState('')
+  const [textoDebug, setTextoDebug] = React.useState('')
+  const [showDebug, setShowDebug] = React.useState(false)
 
   const {
     mode, rendaMensal, rendaAnual, syncFrom,
@@ -477,6 +479,22 @@ ${textoCompleto}`
             <button onClick={processUpload} style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg,#8a6010,var(--gold))', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '15px', fontWeight: 800, cursor: 'pointer', fontFamily: 'var(--font-display)' }}>
               Analisar com IA
             </button>
+          )}
+
+          {/* Debug: texto extraído */}
+          {textoDebug && !loading && (
+            <div style={{ marginTop: '12px' }}>
+              <button onClick={function() { setShowDebug(!showDebug) }}
+                style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-dim)', fontSize: '11px', padding: '6px 12px', cursor: 'pointer', width: '100%' }}>
+                {showDebug ? '▴ Ocultar texto extraído do PDF' : '▾ Ver texto extraído do PDF (' + textoDebug.length + ' chars)'}
+              </button>
+              {showDebug && (
+                <div style={{ marginTop: '8px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', maxHeight: '300px', overflowY: 'auto', lineHeight: 1.6 }}>
+                  {textoDebug.slice(0, 3000)}
+                  {textoDebug.length > 3000 && '\n\n[... ' + (textoDebug.length - 3000) + ' chars restantes ...]'}
+                </div>
+              )}
+            </div>
           )}
 
           {extracted && !loading && (
