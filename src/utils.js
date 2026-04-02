@@ -88,19 +88,24 @@ export function calcIR(rendaBaseMensal) {
 // ── PGBL — lógica XP: base = bruta - INSS ────────────────────────────────────
 export function calcPGBL(rendaBrutaAnual, aliquotaMarginal, inssAnual) {
   const inss = inssAnual || 0
-  const baseLiquida = Math.max(0, rendaBrutaAnual - inss)
-  const pgblIdeal = baseLiquida * 0.12
+  // Limite 12% é sobre a RENDA BRUTA (Receita Federal) — INSS não reduz a base dos 12%
+  const pgblIdeal = rendaBrutaAnual * 0.12
   const economiaAnual = pgblIdeal * aliquotaMarginal
   const economiaMensal = economiaAnual / 12
+  // baseLiquida = bruta - INSS (usada só para exibição e cálculo de IR)
+  const baseLiquida = Math.max(0, rendaBrutaAnual - inss)
   return { pgblIdeal, economiaAnual, economiaMensal, baseLiquida }
 }
 
-// Comparativo IR sem/com PGBL
+// Comparativo IR sem/com PGBL (lógica Receita Federal)
+// Base IR = Renda Bruta − INSS − PGBL  (deduções independentes)
 export function calcComparativoIR(rendaBrutaAnual, inssAnual, pgblAporte) {
   const inss = inssAnual || 0
   const pgbl = pgblAporte || 0
+  // Sem PGBL: deduz só INSS
   const baseSemPGBL = Math.max(0, rendaBrutaAnual - inss)
-  const baseComPGBL = Math.max(0, baseSemPGBL - pgbl)
+  // Com PGBL: deduz INSS + PGBL
+  const baseComPGBL = Math.max(0, rendaBrutaAnual - inss - pgbl)
 
   function irAnual(baseAnual) {
     const baseMensal = baseAnual / 12
