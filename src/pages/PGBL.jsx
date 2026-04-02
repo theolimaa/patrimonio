@@ -6,7 +6,14 @@ import {
   projetarPGBL, extractPdfText, callClaude
 } from '../utils'
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function truncar(texto, max) {
+  if (!texto || texto.length <= max) return texto
+  const p = Math.floor(max / 2)
+  return texto.slice(0, p) + '\n...\n' + texto.slice(texto.length - p)
+}
+
+// ── UI Components ─────────────────────────────────────────────────────────────
 function SectionTitle() {
   return (
     <div style={{ marginBottom: '28px' }}>
@@ -35,41 +42,34 @@ function MoneyField({ label, value, onChange, hint, disabled }) {
       {label && <Label>{label}</Label>}
       <div style={{ position: 'relative' }}>
         <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: disabled ? 'var(--text-dim)' : 'var(--gold)', fontSize: '13px', fontWeight: 700, pointerEvents: 'none', fontFamily: 'var(--font-mono)' }}>R$</span>
-        <input
-          type="text"
-          value={fromCents(value)}
-          onChange={function(e) { if (!disabled) onChange(parseCents(e.target.value)) }}
-          placeholder="0,00"
-          disabled={disabled}
-          style={{ width: '100%', background: disabled ? 'var(--bg-input)' : 'var(--bg-input)', border: '1.5px solid var(--border)', borderRadius: '10px', padding: '13px 14px 13px 46px', color: disabled ? 'var(--text-dim)' : 'var(--text)', fontSize: '16px', fontFamily: 'var(--font-mono)', fontWeight: 500, outline: 'none', opacity: disabled ? 0.6 : 1, cursor: disabled ? 'not-allowed' : 'text' }}
+        <input type="text" value={fromCents(value)} onChange={function(e) { if (!disabled) onChange(parseCents(e.target.value)) }} placeholder="0,00" disabled={disabled}
+          style={{ width: '100%', background: 'var(--bg-input)', border: '1.5px solid var(--border)', borderRadius: '10px', padding: '13px 14px 13px 46px', color: disabled ? 'var(--text-dim)' : 'var(--text)', fontSize: '16px', fontFamily: 'var(--font-mono)', fontWeight: 500, outline: 'none', opacity: disabled ? 0.6 : 1 }}
           onFocus={function(e) { if (!disabled) e.target.style.borderColor = 'var(--gold)' }}
-          onBlur={function(e) { e.target.style.borderColor = 'var(--border)' }}
-        />
+          onBlur={function(e) { e.target.style.borderColor = 'var(--border)' }} />
       </div>
       {hint && <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '5px', fontStyle: 'italic' }}>{hint}</div>}
     </div>
   )
 }
 
-function Spinner({ msg, sub }) {
+function Spinner({ msg }) {
   return (
     <div style={{ textAlign: 'center', padding: '40px 20px' }}>
       <div style={{ width: '36px', height: '36px', border: '3px solid var(--gold-dim)', borderTop: '3px solid var(--gold)', borderRadius: '50%', animation: 'spin 0.9s linear infinite', margin: '0 auto 14px' }} />
-      <div style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '4px', fontFamily: 'var(--font-display)', fontWeight: 600 }}>{msg}</div>
-      {sub && <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{sub}</div>}
+      <div style={{ fontSize: '14px', color: 'var(--text-muted)', fontFamily: 'var(--font-display)', fontWeight: 600 }}>{msg}</div>
     </div>
   )
 }
 
 function AliquotaBadge({ pct }) {
-  const pctInt = Math.round(pct * 1000) / 10
-  const green = pctInt === 0
-  const bg = green ? 'rgba(26,153,85,0.1)' : pctInt <= 15 ? 'rgba(243,156,18,0.1)' : 'rgba(204,44,31,0.1)'
-  const clr = green ? 'var(--green)' : pctInt <= 15 ? '#c87010' : 'var(--red)'
+  const v = Math.round(pct * 1000) / 10
+  const green = v === 0
+  const bg = green ? 'rgba(26,153,85,0.1)' : v <= 15 ? 'rgba(243,156,18,0.1)' : 'rgba(204,44,31,0.1)'
+  const clr = green ? 'var(--green)' : v <= 15 ? '#c87010' : 'var(--red)'
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: bg, border: '1px solid ' + clr, borderRadius: '20px', padding: '4px 12px' }}>
       <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: clr }} />
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: clr }}>{pctInt.toFixed(1)}%</span>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: clr }}>{v.toFixed(1)}%</span>
     </div>
   )
 }
@@ -79,11 +79,11 @@ function ChartTooltip(props) {
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 16px', minWidth: '200px', boxShadow: 'var(--shadow)' }}>
       <div style={{ fontSize: '12px', color: 'var(--gold)', marginBottom: '8px', fontWeight: 700, fontFamily: 'var(--font-display)' }}>Ano {props.label}</div>
-      {props.payload.map(function(entry) {
+      {props.payload.map(function(e) {
         return (
-          <div key={entry.name} style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginBottom: '4px' }}>
-            <span style={{ fontSize: '12px', color: entry.color }}>{entry.name}</span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text)', fontWeight: 600 }}>{fmtBRLShort(entry.value)}</span>
+          <div key={e.name} style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginBottom: '4px' }}>
+            <span style={{ fontSize: '12px', color: e.color }}>{e.name}</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 600 }}>{fmtBRLShort(e.value)}</span>
           </div>
         )
       })}
@@ -96,29 +96,23 @@ function DropZone({ files, onAdd, onRemove, label, single }) {
   const [dragging, setDragging] = React.useState(false)
   function handleFiles(list) {
     const arr = Array.from(list)
-    if (single) { onAdd([arr[0]]) }
-    else {
+    if (single) { onAdd([arr[0]]) } else {
       const novos = arr.filter(function(f) { return !files.find(function(x) { return x.name === f.name && x.size === f.size }) })
       if (novos.length) onAdd(novos)
     }
   }
   return (
     <div>
-      <div
-        onDragOver={function(e) { e.preventDefault(); setDragging(true) }}
-        onDragLeave={function() { setDragging(false) }}
+      <div onDragOver={function(e) { e.preventDefault(); setDragging(true) }} onDragLeave={function() { setDragging(false) }}
         onDrop={function(e) { e.preventDefault(); setDragging(false); handleFiles(e.dataTransfer.files) }}
         onClick={function() { inputRef.current.click() }}
-        style={{ border: '2px dashed ' + (dragging ? 'var(--gold)' : files.length ? 'rgba(26,153,85,0.5)' : 'var(--border-strong)'), borderRadius: '12px', padding: '24px', textAlign: 'center', cursor: 'pointer', background: dragging ? 'var(--gold-dim)' : files.length ? 'rgba(26,153,85,0.05)' : 'var(--bg-input)', transition: 'all 0.2s' }}
-      >
+        style={{ border: '2px dashed ' + (dragging ? 'var(--gold)' : files.length ? 'rgba(26,153,85,0.5)' : 'var(--border-strong)'), borderRadius: '12px', padding: '28px', textAlign: 'center', cursor: 'pointer', background: dragging ? 'var(--gold-dim)' : files.length ? 'rgba(26,153,85,0.05)' : 'var(--bg-input)', transition: 'all 0.2s' }}>
         <input ref={inputRef} type="file" accept="application/pdf,image/*" multiple={!single} style={{ display: 'none' }} onChange={function(e) { handleFiles(e.target.files) }} />
-        <div style={{ fontSize: '30px', marginBottom: '8px' }}>{files.length ? '✅' : '📄'}</div>
-        <div style={{ fontSize: '13px', fontWeight: 700, color: files.length ? 'var(--green)' : 'var(--text)', marginBottom: '3px', fontFamily: 'var(--font-display)' }}>
+        <div style={{ fontSize: '32px', marginBottom: '10px' }}>{files.length ? '✅' : '📄'}</div>
+        <div style={{ fontSize: '13px', fontWeight: 700, color: files.length ? 'var(--green)' : 'var(--text)', marginBottom: '4px', fontFamily: 'var(--font-display)' }}>
           {files.length ? (single ? files[0].name : files.length + ' arquivo' + (files.length > 1 ? 's' : '') + ' selecionado' + (files.length > 1 ? 's' : '')) : label}
         </div>
-        <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-          {single ? 'PDF · texto extraído automaticamente' : 'PDF · múltiplos arquivos aceitos'}
-        </div>
+        <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>PDF · texto extraído automaticamente</div>
       </div>
       {files.length > 0 && !single && (
         <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -143,192 +137,142 @@ function DropZone({ files, onAdd, onRemove, label, single }) {
 
 const ANOS_OPTIONS = [1, 2, 3, 5, 7, 10, 15, 20, 25, 30]
 
-const CATEGORIAS_RENDA = {
-  trabalho:      { label: 'Rendimentos do Trabalho',    cor: '#4a9fd4' },
-  alugueis:      { label: 'Aluguéis e Arrendamentos',   cor: '#c9a84c' },
-  investimentos: { label: 'Investimentos & Aplicações', cor: '#2ecc71' },
-  empresa:       { label: 'Rendimentos Empresariais',   cor: '#9b59b6' },
-  outros:        { label: 'Outros Rendimentos',         cor: '#e67e22' },
-  nao_tributavel:{ label: 'Não Tributáveis / Isentos',  cor: '#7f8c8d' },
-}
-
-function truncarTexto(texto, maxChars) {
-  if (!texto || texto.length <= maxChars) return texto
-  const parte = Math.floor(maxChars / 2)
-  return texto.slice(0, parte) + '\n[...]\n' + texto.slice(texto.length - parte)
-}
-
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function PGBL({ formState, setFormState, onDataChange }) {
   const [loading, setLoading] = React.useState(false)
   const [loadingMsg, setLoadingMsg] = React.useState('')
   const [error, setError] = React.useState('')
-  const [textoDebug, setTextoDebug] = React.useState('')
-  const [showDebug, setShowDebug] = React.useState(false)
 
-  const {
-    mode, rendaMensal, rendaAnual, syncFrom,
-    contribuiINSS, inssManual, inssOverride,
-    rendExclusivos,
-    holerites, irFile, extracted, anos, showTable
-  } = formState
+  const { mode, rendaMensal, rendaAnual, syncFrom, contribuiINSS, inssManual, inssOverride,
+    rendExclusivos, holerites, irFile, extracted, irAnalise, anos, showTable } = formState
 
-  function upd(key) {
-    return function(val) { setFormState(function(prev) { return { ...prev, [key]: val } }) }
-  }
+  function upd(key) { return function(val) { setFormState(function(prev) { return { ...prev, [key]: val } }) } }
 
   function handleRendaMensalChange(cents) {
-    setFormState(function(prev) {
-      return { ...prev, rendaMensal: cents, syncFrom: 'mensal', rendaAnual: String(Math.round(((parseInt(cents) || 0) / 100) * 12 * 100)) }
-    })
+    setFormState(function(prev) { return { ...prev, rendaMensal: cents, syncFrom: 'mensal', rendaAnual: String(Math.round(((parseInt(cents) || 0) / 100) * 12 * 100)) } })
   }
   function handleRendaAnualChange(cents) {
-    setFormState(function(prev) {
-      return { ...prev, rendaAnual: cents, syncFrom: 'anual', rendaMensal: String(Math.round(((parseInt(cents) || 0) / 100 / 12) * 100)) }
-    })
+    setFormState(function(prev) { return { ...prev, rendaAnual: cents, syncFrom: 'anual', rendaMensal: String(Math.round(((parseInt(cents) || 0) / 100 / 12) * 100)) } })
   }
 
-  // Renda bruta mensal e anual
+  // Renda numérica
   const rendaMensalNum = mode === 'manual'
     ? (syncFrom === 'mensal' ? centsToNum(rendaMensal) : centsToNum(rendaAnual) / 12)
-    : (extracted ? extracted.rendaMensal : 0)
+    : (irAnalise ? irAnalise.rendaCompensavelAnual / 12 : 0)
   const rendaAnualNum = mode === 'manual'
     ? (syncFrom === 'anual' ? centsToNum(rendaAnual) : centsToNum(rendaMensal) * 12)
-    : (extracted ? extracted.rendaAnual : 0)
+    : (irAnalise ? irAnalise.rendaCompensavelAnual : 0)
 
-  // Rendimentos exclusivos = apenas PLR/bônus informados manualmente
-  // (13º já é excluído automaticamente: salário × 12 não inclui o 13º)
-  const rendExclusivosNum = centsToNum(rendExclusivos || '')
-
-  // INSS: automático (tabela 2024) ou manual
+  // INSS
   const inssAutoMensal = contribuiINSS ? calcINSSMensal(rendaMensalNum) : 0
-  const inssAutoAnual  = contribuiINSS ? calcINSSAnual(rendaMensalNum, 12) : 0
-  const inssAnualFinal = contribuiINSS
-    ? (inssOverride && inssManual ? centsToNum(inssManual) : inssAutoAnual)
-    : 0
+  const inssAutoAnual = contribuiINSS ? calcINSSAnual(rendaMensalNum, 12) : 0
+  const inssAnualFinal = mode === 'upload' && irAnalise
+    ? (irAnalise.inss || 0)
+    : (contribuiINSS ? (inssOverride && inssManual ? centsToNum(inssManual) : inssAutoAnual) : 0)
 
-  // Base compensável = Bruta − Rendimentos exclusivos (13º, PLR)
-  const baseLiquidaAnual  = Math.max(0, rendaAnualNum - inssAnualFinal)
+  // Exclusivos (PLR)
+  const rendExclusivosNum = centsToNum(rendExclusivos || '')
   const baseCompensavelAnual = Math.max(0, rendaAnualNum - rendExclusivosNum)
 
-  // IR sobre base sem rendimentos exclusivos e sem INSS
+  // Cálculos PGBL
   const irInfo = calcIR((baseCompensavelAnual - inssAnualFinal) / 12)
-
-  // PGBL: limite 12% da base compensável
   const pgblInfo = calcPGBL(rendaAnualNum, irInfo.aliquotaMarginal, inssAnualFinal, rendExclusivosNum)
-  const previdenciaCorpAnual = extracted ? (extracted.previdenciaCorpAnual || 0) : 0
+
+  // Previdência corporativa
+  const previdenciaCorpAnual = mode === 'upload' && irAnalise
+    ? (irAnalise.pgblCorporativoAnual || 0)
+    : 0
   const pgblRestante = Math.max(0, pgblInfo.pgblIdeal - previdenciaCorpAnual)
   const economiaRestante = pgblRestante * irInfo.aliquotaMarginal
-
-  // Comparativo IR
   const comparativo = calcComparativoIR(rendaAnualNum, inssAnualFinal, pgblInfo.pgblIdeal, rendExclusivosNum)
-
   const projection = projetarPGBL(pgblRestante, irInfo.aliquotaMarginal, anos)
   const hasData = rendaAnualNum > 0
 
   useEffect(function() {
     if (hasData) {
-      onDataChange({
-        rendaAnual: rendaAnualNum,
-        rendaMensal: rendaMensalNum,
-        inssAnual: inssAnualFinal,
-        baseLiquida: baseLiquidaAnual,
-        aliquotaMarginal: irInfo.aliquotaMarginal,
-        pgblIdeal: pgblInfo.pgblIdeal,
-        pgblRestante,
-        previdenciaCorpAnual,
-        economiaAnual: pgblInfo.economiaAnual,
-        economiaRestante,
-        comparativo,
-        projecao: projection,
-        anos,
-      })
+      onDataChange({ rendaAnual: rendaAnualNum, rendaMensal: rendaMensalNum, inssAnual: inssAnualFinal,
+        aliquotaMarginal: irInfo.aliquotaMarginal, pgblIdeal: pgblInfo.pgblIdeal, pgblRestante,
+        previdenciaCorpAnual, economiaAnual: pgblInfo.economiaAnual, economiaRestante, comparativo, projecao: projection, anos })
     }
   }, [rendaAnualNum, anos, inssAnualFinal, previdenciaCorpAnual])
 
-  // ── Upload ──────────────────────────────────────────────────────────────────
-  async function processUpload() {
-    const allFiles = [...holerites, ...irFile]
-    if (allFiles.length === 0) { setError('Envie ao menos um arquivo.'); return }
+  // ── UPLOAD DE IR ────────────────────────────────────────────────────────────
+  async function analisarIR() {
+    if (irFile.length === 0 && holerites.length === 0) { setError('Envie ao menos um arquivo.'); return }
     setError(''); setLoading(true)
+
     try {
-      let textoCompleto = ''
+      // 1. Extrai texto de todos os arquivos
+      let textos = []
       for (var i = 0; i < irFile.length; i++) {
-        setLoadingMsg('Lendo declaração IR...')
-        const textoIR = await extractPdfText(irFile[i])
-        // truncarTexto pega início + fim — garante capturar dados espalhados pelo documento
-        textoCompleto += '\n\n=== DECLARAÇÃO DE IR ===\n' + truncarTexto(textoIR, 4000)
+        setLoadingMsg('Lendo declaração IR (' + (i + 1) + ')...')
+        const t = await extractPdfText(irFile[i])
+        textos.push({ tipo: 'IR', nome: irFile[i].name, texto: truncar(t, 3500) })
       }
       for (var j = 0; j < holerites.length; j++) {
-        setLoadingMsg('Lendo holerite ' + (j + 1) + ' de ' + holerites.length + '...')
-        const textoHol = await extractPdfText(holerites[j])
-        textoCompleto += '\n\n=== HOLERITE ' + (j + 1) + ' ===\n' + truncarTexto(textoHol, 2000)
+        setLoadingMsg('Lendo holerite ' + (j + 1) + '...')
+        const t = await extractPdfText(holerites[j])
+        textos.push({ tipo: 'HOLERITE', nome: holerites[j].name, texto: truncar(t, 2000) })
       }
-      if (textoCompleto.length > 5500) textoCompleto = truncarTexto(textoCompleto, 5500)
 
-      // Salva texto para debug e verifica se extraiu algo
-      setTextoDebug(textoCompleto)
-      const textoLimpo = textoCompleto.replace(/\s/g, '')
-      if (textoLimpo.length < 30) {
-        setLoading(false)
-        setLoadingMsg('')
-        setError('Não foi possível extrair texto do PDF. Clique em "Ver texto extraído" abaixo para confirmar.')
-        return
+      // 2. Monta contexto para a IA
+      const contexto = textos.map(function(t) {
+        return '=== ' + t.tipo + ': ' + t.nome + ' ===\n' + t.texto
+      }).join('\n\n')
+
+      if (contexto.replace(/\s/g, '').length < 50) {
+        throw new Error('Não foi possível ler o texto do PDF. O arquivo pode ser uma imagem escaneada.')
       }
 
       setLoadingMsg('Analisando com IA...')
 
-      const prompt = `Especialista tributário BR. Analise os documentos abaixo (declaração IRPF, holerite ou informe de rendimentos) e extraia dados financeiros. O texto foi extraído de PDF e pode estar desformatado — procure pelos valores mesmo fora de ordem.
+      // 3. Prompt focado no que realmente importa
+      const prompt = `Você é especialista em planejamento tributário brasileiro. Analise o(s) documento(s) abaixo e retorne SOMENTE um JSON com os dados para calcular o benefício do PGBL.
 
-Tributáveis: salário, 13º, férias+1/3, pró-labore, bônus folha, aluguéis PF, JCP, pensão alimentícia.
-Não tributáveis: dividendos, PLR, FGTS, indenização trabalhista, seguro-desemprego.
-Descontos: INSS, IRRF, previdência corporativa (Prev, PGBL corp, Fundo Pensão).
-Se múltiplos documentos, some os valores anuais.
-Se não encontrar um valor, use 0.
+O que preciso saber:
+1. Renda bruta tributável compensável anual (exclui 13º, PLR, dividendos, FGTS — só o que pode ser deduzido via PGBL)
+2. Se a pessoa já faz aporte em PGBL via empresa/corporativo (plano fechado descontado no holerite)
+3. INSS total anual descontado
+4. Outras rendas tributáveis além do salário (aluguéis, pró-labore, etc)
 
-Responda SOMENTE JSON puro sem texto antes ou depois:
-{"rendaMensalTributavel":0,"rendaAnualTributavel":0,"rendaAnualNaoTributavel":0,"inss":0,"irrf":0,"meses":12,"previdenciaCorpMensal":0,"previdenciaCorpAnual":0,"nomePrevidenciaCorp":null,"fontes":[{"descricao":"string","valor":0,"tributavel":true,"categoria":"trabalho","observacao":null}],"descontos":[{"descricao":"string","valor":0,"tipo":"inss"}],"observacoes":"string"}
+RETORNE APENAS ESTE JSON, sem texto antes ou depois:
+{
+  "rendaCompensavelAnual": 0,
+  "inss": 0,
+  "pgblCorporativoAnual": 0,
+  "nomePrevidenciaCorp": null,
+  "outrasRendas": [{"descricao": "string", "valor": 0, "tributavel": true}],
+  "observacoes": "string com resumo do que foi encontrado e como chegou nos valores"
+}
 
 DOCUMENTOS:
-${textoCompleto}`
+${contexto.slice(0, 5000)}`
 
-      const raw = await callClaude([{ role: 'user', content: prompt }], 1200)
+      const raw = await callClaude([{ role: 'user', content: prompt }], 1000)
 
-      let parsed
-      try {
-        const clean = raw.replace(/```json|```/g, '').trim()
-        const si = clean.indexOf('{')
-        const ei = clean.lastIndexOf('}')
-        if (si === -1 || ei === -1) throw new Error('sem JSON')
-        parsed = JSON.parse(clean.slice(si, ei + 1))
-      } catch (parseErr) {
-        setLoadingMsg('Refinando análise...')
-        const prompt2 = 'Extraia rendimentos do texto abaixo. Retorne SOMENTE JSON sem texto adicional:\n{"rendaMensalTributavel":0,"rendaAnualTributavel":0,"rendaAnualNaoTributavel":0,"inss":0,"irrf":0,"meses":12,"previdenciaCorpMensal":0,"previdenciaCorpAnual":0,"nomePrevidenciaCorp":null,"fontes":[],"descontos":[],"observacoes":""}\n\nTEXTO: ' + textoCompleto.slice(0, 2000)
-        const raw2 = await callClaude([{ role: 'user', content: prompt2 }], 800)
-        const clean2 = raw2.replace(/```json|```/g, '').trim()
-        const si2 = clean2.indexOf('{')
-        const ei2 = clean2.lastIndexOf('}')
-        if (si2 === -1) throw new Error('Não foi possível extrair dados do documento. Verifique se o PDF contém texto selecionável (não é uma imagem escaneada).')
-        parsed = JSON.parse(clean2.slice(si2, ei2 + 1))
-      }
+      // 4. Parse robusto
+      const clean = raw.replace(/```json|```/g, '').trim()
+      const si = clean.indexOf('{')
+      const ei = clean.lastIndexOf('}')
+      if (si === -1 || ei === -1) throw new Error('A IA não retornou JSON válido. Tente novamente ou use o modo manual.')
 
-      upd('extracted')({
-        rendaMensal: parsed.rendaMensalTributavel || 0,
-        rendaAnual: parsed.rendaAnualTributavel || 0,
-        rendaAnualNaoTributavel: parsed.rendaAnualNaoTributavel || 0,
+      const parsed = JSON.parse(clean.slice(si, ei + 1))
+
+      upd('irAnalise')({
+        rendaCompensavelAnual: parsed.rendaCompensavelAnual || 0,
         inss: parsed.inss || 0,
-        irrf: parsed.irrf || 0,
-        meses: parsed.meses || 12,
-        previdenciaCorpMensal: parsed.previdenciaCorpMensal || 0,
-        previdenciaCorpAnual: parsed.previdenciaCorpAnual || 0,
+        pgblCorporativoAnual: parsed.pgblCorporativoAnual || 0,
         nomePrevidenciaCorp: parsed.nomePrevidenciaCorp || null,
-        fontes: parsed.fontes || [],
-        descontos: parsed.descontos || [],
+        outrasRendas: parsed.outrasRendas || [],
         observacoes: parsed.observacoes || '',
-        itens: (parsed.fontes || []).map(function(f) { return { descricao: f.descricao, valor: f.valor, tributavel: f.tributavel } }),
       })
-    } catch (err) { setError('Erro: ' + err.message) }
-    setLoading(false); setLoadingMsg('')
+
+    } catch (err) {
+      setError('Erro: ' + err.message)
+    }
+
+    setLoading(false)
+    setLoadingMsg('')
   }
 
   // ── RENDER ──────────────────────────────────────────────────────────────────
@@ -336,7 +280,7 @@ ${textoCompleto}`
     <div>
       <SectionTitle />
 
-      {/* Modo toggle */}
+      {/* Toggle modo */}
       <div style={{ display: 'flex', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '5px', marginBottom: '20px', maxWidth: '460px', boxShadow: 'var(--shadow-card)' }}>
         {[{ key: 'manual', icon: '✏️', label: 'Preencher manualmente' }, { key: 'upload', icon: '📎', label: 'Upload de documentos' }].map(function(opt) {
           const active = mode === opt.key
@@ -354,103 +298,50 @@ ${textoCompleto}`
         <Card>
           <CardTitle>Renda Bruta Tributável Compensável</CardTitle>
           <div style={{ padding: '10px 14px', background: 'rgba(74,159,212,0.06)', border: '1px solid rgba(74,159,212,0.2)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '20px', lineHeight: 1.7 }}>
-            ℹ️ Informe o <strong style={{ color: 'var(--text)' }}>salário mensal do holerite</strong> — o 13º já é excluído automaticamente por ter tributação exclusiva. Se houver PLR, informe abaixo.
+            ℹ️ Informe o <strong style={{ color: 'var(--text)' }}>salário mensal</strong>. O 13º é excluído automaticamente (tributação exclusiva). Se houver PLR, informe abaixo.
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-            <MoneyField label="Salário mensal bruto" value={rendaMensal} onChange={handleRendaMensalChange} hint="Valor do holerite — 13º é excluído automaticamente" />
-            <MoneyField label="Renda anual (salário × 12)" value={rendaAnual} onChange={handleRendaAnualChange} hint="Calculado automaticamente ou edite aqui" />
+            <MoneyField label="Salário mensal bruto" value={rendaMensal} onChange={handleRendaMensalChange} hint="Valor do holerite — 13º excluído automaticamente" />
+            <MoneyField label="Renda anual (× 12)" value={rendaAnual} onChange={handleRendaAnualChange} hint="Calculado automaticamente ou edite aqui" />
           </div>
 
           {/* PLR */}
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '18px', marginBottom: '4px' }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>PLR / Bônus com tributação exclusiva</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '14px', lineHeight: 1.6 }}>
-              Opcional — participação nos lucros e bônus com tributação exclusiva. Serão excluídos da base compensável do PGBL.
-            </div>
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '18px', marginBottom: '20px' }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>PLR / rendimentos com tributação exclusiva</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '12px' }}>Participação nos lucros e similares — não entram na base do PGBL</div>
             <div style={{ maxWidth: '340px' }}>
-              <MoneyField
-                label="PLR / bônus exclusivos (anual)"
-                value={rendExclusivos}
-                onChange={upd('rendExclusivos')}
-                hint="Deixe em branco se não houver PLR"
-              />
+              <MoneyField label="PLR anual (opcional)" value={rendExclusivos} onChange={upd('rendExclusivos')} hint="Deixe em branco se não houver" />
             </div>
-            {rendExclusivosNum > 0 && (
-              <div style={{ marginTop: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px' }}>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', fontWeight: 600, fontFamily: 'var(--font-display)', marginBottom: '4px' }}>Salário anual (× 12)</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 600 }}>{fmtBRL(rendaAnualNum)}</div>
-                </div>
-                <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px' }}>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#4a9fd4', fontWeight: 600, fontFamily: 'var(--font-display)', marginBottom: '4px' }}>(−) PLR exclusivo</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 600, color: '#4a9fd4' }}>− {fmtBRL(rendExclusivosNum)}</div>
-                </div>
-                <div style={{ background: 'rgba(26,153,85,0.07)', border: '1px solid rgba(26,153,85,0.25)', borderRadius: '8px', padding: '10px 12px' }}>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--green)', fontWeight: 600, fontFamily: 'var(--font-display)', marginBottom: '4px' }}>Base compensável PGBL</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: 'var(--green)' }}>{fmtBRL(baseCompensavelAnual)}</div>
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Checkbox INSS */}
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
-            <button
-              onClick={function() { upd('contribuiINSS')(!contribuiINSS) }}
+          {/* INSS */}
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '18px' }}>
+            <button onClick={function() { upd('contribuiINSS')(!contribuiINSS) }}
               style={{ display: 'flex', alignItems: 'center', gap: '12px', background: contribuiINSS ? 'rgba(201,168,76,0.08)' : 'var(--bg-input)', border: contribuiINSS ? '1.5px solid var(--gold)' : '1.5px solid var(--border)', borderRadius: '12px', padding: '14px 18px', cursor: 'pointer', width: '100%', textAlign: 'left', transition: 'all 0.2s' }}>
-              <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: contribuiINSS ? 'var(--gold)' : 'transparent', border: contribuiINSS ? '2px solid var(--gold)' : '2px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.2s' }}>
+              <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: contribuiINSS ? 'var(--gold)' : 'transparent', border: contribuiINSS ? '2px solid var(--gold)' : '2px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 {contribuiINSS && <span style={{ color: '#fff', fontSize: '13px', fontWeight: 900 }}>✓</span>}
               </div>
               <div>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 700, color: contribuiINSS ? 'var(--gold-light)' : 'var(--text)' }}>Contribui com INSS / RPPS</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  {contribuiINSS
-                    ? 'O INSS reduz a base tributável antes do cálculo dos 12% do PGBL (lógica XP)'
-                    : 'Marque se o cliente é CLT, servidor público ou MEI com desconto previdenciário'}
-                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>CLT, servidor público ou MEI — reduz a base do IR</div>
               </div>
             </button>
-
             {contribuiINSS && (
-              <div className="animate-in" style={{ marginTop: '16px' }}>
-                {/* INSS automático */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '14px' }}>
-                  <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '9px', padding: '12px 14px' }}>
-                    <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>INSS mensal (auto)</div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--gold-light)', fontWeight: 700 }}>{fmtBRL(inssAutoMensal)}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px' }}>Tabela progressiva 2024</div>
-                  </div>
-                  <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '9px', padding: '12px 14px' }}>
-                    <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>INSS anual (auto)</div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--gold-light)', fontWeight: 700 }}>{fmtBRL(inssAutoAnual)}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px' }}>Teto: {fmtBRL(908.86 * 12)}/ano</div>
-                  </div>
-                  <div style={{ background: 'rgba(26,153,85,0.07)', border: '1px solid rgba(26,153,85,0.25)', borderRadius: '9px', padding: '12px 14px' }}>
-                    <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--green)', marginBottom: '4px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>Base PGBL (bruta − INSS)</div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--green)', fontWeight: 700 }}>{fmtBRL(baseLiquidaAnual)}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px' }}>Igual à lógica XP</div>
-                  </div>
+              <div style={{ marginTop: '14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '9px', padding: '12px 14px' }}>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>INSS anual automático</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--gold-light)', fontWeight: 700 }}>{fmtBRL(inssAutoAnual)}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px' }}>Tabela progressiva 2024 · teto {fmtBRL(908.86 * 12)}</div>
                 </div>
-
-                {/* Override manual */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                  <button
-                    onClick={function() { upd('inssOverride')(!inssOverride) }}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '12px', padding: 0 }}>
-                    <div style={{ width: '16px', height: '16px', borderRadius: '4px', border: '2px solid var(--border)', background: inssOverride ? 'var(--text-muted)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ maxWidth: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', cursor: 'pointer' }} onClick={function() { upd('inssOverride')(!inssOverride) }}>
+                    <div style={{ width: '16px', height: '16px', borderRadius: '4px', border: '2px solid var(--border)', background: inssOverride ? 'var(--text-muted)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       {inssOverride && <span style={{ color: '#fff', fontSize: '10px', fontWeight: 900 }}>✓</span>}
                     </div>
-                    Informar valor de INSS manualmente
-                  </button>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Informar INSS manualmente</span>
+                  </div>
+                  {inssOverride && <MoneyField label="INSS anual" value={inssManual} onChange={upd('inssManual')} hint="Substitui o cálculo automático" />}
                 </div>
-                {inssOverride && (
-                  <MoneyField
-                    label="INSS anual manual"
-                    value={inssManual}
-                    onChange={upd('inssManual')}
-                    hint="Substitui o cálculo automático"
-                  />
-                )}
               </div>
             )}
           </div>
@@ -461,157 +352,84 @@ ${textoCompleto}`
       {mode === 'upload' && (
         <div>
           <Card>
-            <CardTitle>Holerites</CardTitle>
+            <CardTitle>Declaração de IR</CardTitle>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.7 }}>
-              A IA identifica rendimentos, descontos, INSS e previdência corporativa automaticamente.
+              A IA vai identificar automaticamente a renda compensável, INSS, previdência corporativa e outras fontes de renda.
+            </div>
+            <DropZone files={irFile} onAdd={function(arr) { upd('irFile')([arr[0]]) }} onRemove={function() { upd('irFile')([]) }} label="Clique ou arraste a declaração de IR aqui" single={true} />
+          </Card>
+
+          <Card>
+            <CardTitle>Holerites (opcional)</CardTitle>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.7 }}>
+              Complementa com dados de salário, INSS e previdência corporativa descontados em folha.
             </div>
             <DropZone files={holerites} onAdd={function(arr) { upd('holerites')(holerites.concat(arr)) }} onRemove={function(idx) { upd('holerites')(holerites.filter(function(_, j) { return j !== idx })) }} label="Clique ou arraste os holerites aqui" />
           </Card>
-          <Card>
-            <CardTitle>Declaração de IR (opcional)</CardTitle>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.7 }}>
-              Complementa com aluguéis, investimentos, dividendos e demais rendimentos declarados.
-            </div>
-            <DropZone files={irFile} onAdd={function(arr) { upd('irFile')([arr[0]]) }} onRemove={function() { upd('irFile')([]) }} label="Clique ou arraste a declaração aqui" single={true} />
-          </Card>
 
-          {error && <div style={{ background: 'rgba(204,44,31,0.08)', border: '1px solid rgba(204,44,31,0.25)', borderRadius: '10px', padding: '12px 16px', color: 'var(--red)', fontSize: '13px', marginBottom: '12px' }}>⚠️ {error}</div>}
-          {loading ? <Spinner msg={loadingMsg || 'Processando...'} sub="Extraindo texto e analisando com IA" /> : (
-            <button onClick={processUpload} style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg,#8a6010,var(--gold))', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '15px', fontWeight: 800, cursor: 'pointer', fontFamily: 'var(--font-display)' }}>
+          {error && (
+            <div style={{ background: 'rgba(204,44,31,0.08)', border: '1px solid rgba(204,44,31,0.25)', borderRadius: '10px', padding: '14px 16px', color: 'var(--red)', fontSize: '13px', marginBottom: '12px', lineHeight: 1.6 }}>
+              ⚠️ {error}
+            </div>
+          )}
+
+          {loading ? <Spinner msg={loadingMsg || 'Processando...'} /> : (
+            <button onClick={analisarIR} style={{ width: '100%', padding: '15px', background: 'linear-gradient(135deg,#8a6010,var(--gold))', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '15px', fontWeight: 800, cursor: 'pointer', fontFamily: 'var(--font-display)' }}>
               Analisar com IA
             </button>
           )}
 
-          {/* Debug: texto extraído — aparece sempre após upload */}
-          {(textoDebug || error) && !loading && (
-            <div style={{ marginTop: '12px' }}>
-              <button onClick={function() { setShowDebug(!showDebug) }}
-                style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-dim)', fontSize: '11px', padding: '6px 12px', cursor: 'pointer', width: '100%' }}>
-                {showDebug ? '▴ Ocultar texto extraído do PDF' : '▾ Ver texto extraído do PDF (' + textoDebug.length + ' chars)'}
-              </button>
-              {showDebug && (
-                <div style={{ marginTop: '8px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', maxHeight: '300px', overflowY: 'auto', lineHeight: 1.6 }}>
-                  {textoDebug.slice(0, 3000)}
-                  {textoDebug.length > 3000 && '\n\n[... ' + (textoDebug.length - 3000) + ' chars restantes ...]'}
-                </div>
-              )}
-            </div>
-          )}
-
-          {extracted && !loading && (
+          {/* Resultado da análise do IR */}
+          {irAnalise && !loading && (
             <div className="animate-in">
               <Card style={{ marginTop: '16px', borderColor: 'rgba(26,153,85,0.4)' }}>
-                <CardTitle>Dados extraídos</CardTitle>
+                <CardTitle>Análise do Documento</CardTitle>
+
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '20px' }}>
                   {[
-                    ['Renda tributável mensal', fmtBRL(extracted.rendaMensal)],
-                    ['Renda tributável anual', fmtBRL(extracted.rendaAnual)],
-                    ['Renda não tributável', fmtBRL(extracted.rendaAnualNaoTributavel)],
-                    ['INSS retido (ano)', fmtBRL(extracted.inss)],
-                    ['IRRF retido (ano)', fmtBRL(extracted.irrf)],
-                    ['Meses analisados', extracted.meses + ' meses'],
+                    { label: 'Renda compensável anual', value: fmtBRL(irAnalise.rendaCompensavelAnual), hint: 'Base para cálculo dos 12%', destaque: true },
+                    { label: 'INSS anual', value: fmtBRL(irAnalise.inss), hint: 'Deduzido da base do IR' },
+                    { label: 'Prev. corporativa', value: fmtBRL(irAnalise.pgblCorporativoAnual), hint: irAnalise.nomePrevidenciaCorp || 'PGBL via empresa' },
                   ].map(function(item) {
                     return (
-                      <div key={item[0]} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '9px', padding: '12px 14px' }}>
-                        <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '5px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>{item[0]}</div>
-                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'var(--text)', fontWeight: 600 }}>{item[1]}</div>
+                      <div key={item.label} style={{ background: item.destaque ? 'var(--gold-dim)' : 'var(--bg-input)', border: item.destaque ? '1px solid var(--gold)' : '1px solid var(--border)', borderRadius: '9px', padding: '13px 15px' }}>
+                        <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: item.destaque ? 'var(--gold)' : 'var(--text-muted)', marginBottom: '5px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>{item.label}</div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: item.destaque ? 'var(--gold-light)' : 'var(--text)', fontWeight: 700 }}>{item.value}</div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '3px' }}>{item.hint}</div>
                       </div>
                     )
                   })}
                 </div>
 
-                {extracted.previdenciaCorpAnual > 0 && (
-                  <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: '10px', padding: '14px 16px', marginBottom: '20px' }}>
-                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--gold)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '10px' }}>Previdência Corporativa Identificada</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-                      {[
-                        ['Plano', extracted.nomePrevidenciaCorp || 'Prev. Corporativa'],
-                        ['Desconto mensal', fmtBRL(extracted.previdenciaCorpMensal)],
-                        ['Total anual', fmtBRL(extracted.previdenciaCorpAnual)],
-                      ].map(function(item) {
-                        return (
-                          <div key={item[0]}>
-                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px', fontFamily: 'var(--font-display)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{item[0]}</div>
-                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'var(--gold-light)', fontWeight: 700 }}>{item[1]}</div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.6 }}>Este valor já conta para o limite de 12% do PGBL.</div>
+                {irAnalise.pgblCorporativoAnual > 0 && (
+                  <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', fontSize: '13px', color: 'var(--text-muted)' }}>
+                    ✅ <strong style={{ color: 'var(--gold-light)' }}>Previdência corporativa identificada</strong> — {irAnalise.nomePrevidenciaCorp || 'PGBL fechado'}: {fmtBRL(irAnalise.pgblCorporativoAnual)}/ano ({fmtBRL(irAnalise.pgblCorporativoAnual / 12)}/mês). Esse valor já conta para o limite de 12%.
                   </div>
                 )}
 
-                {/* Fontes por categoria */}
-                {extracted.fontes && extracted.fontes.length > 0 && (
-                  <div style={{ marginBottom: '20px' }}>
-                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '12px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>Fontes de Renda Identificadas</div>
-                    {Object.keys(CATEGORIAS_RENDA).map(function(catKey) {
-                      const cat = CATEGORIAS_RENDA[catKey]
-                      const itens = extracted.fontes.filter(function(f) { return f.categoria === catKey })
-                      if (itens.length === 0) return null
-                      const total = itens.reduce(function(acc, f) { return acc + (f.valor || 0) }, 0)
-                      return (
-                        <div key={catKey} style={{ marginBottom: '12px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: cat.cor, flexShrink: 0 }} />
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{cat.label}</span>
-                            </div>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>{fmtBRL(total)}/ano</span>
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingLeft: '18px' }}>
-                            {itens.map(function(fonte, idx) {
-                              return (
-                                <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '9px 12px', background: 'var(--bg-input)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: fonte.tributavel ? cat.cor : 'var(--text-dim)', marginTop: '5px', flexShrink: 0 }} />
-                                  <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: '13px', color: 'var(--text)', fontWeight: 500 }}>{fonte.descricao}</div>
-                                    {fonte.observacao && <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px', fontStyle: 'italic' }}>{fonte.observacao}</div>}
-                                  </div>
-                                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text)', fontWeight: 600 }}>{fmtBRL(fonte.valor)}</div>
-                                    <div style={{ fontSize: '10px', marginTop: '2px', color: fonte.tributavel ? cat.cor : 'var(--text-dim)', fontWeight: 600, fontFamily: 'var(--font-display)' }}>{fonte.tributavel ? 'Tributável' : 'Isento'}</div>
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )
-                    })}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '12px' }}>
-                      <div style={{ padding: '10px 14px', background: 'var(--gold-dim)', border: '1px solid var(--gold)', borderRadius: '8px' }}>
-                        <div style={{ fontSize: '10px', color: 'var(--gold)', fontWeight: 700, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Total tributável</div>
-                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--gold-light)', fontWeight: 700 }}>{fmtBRL(extracted.rendaAnual)}/ano</div>
-                      </div>
-                      <div style={{ padding: '10px 14px', background: 'rgba(127,140,141,0.08)', border: '1px solid rgba(127,140,141,0.25)', borderRadius: '8px' }}>
-                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Total isento</div>
-                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--text)', fontWeight: 700 }}>{fmtBRL(extracted.rendaAnualNaoTributavel)}/ano</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {extracted.descontos && extracted.descontos.length > 0 && (
+                {irAnalise.outrasRendas && irAnalise.outrasRendas.length > 0 && (
                   <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>Descontos Identificados</div>
-                    {extracted.descontos.map(function(desc, idx) {
-                      const corTipo = { inss: '#4a9fd4', irrf: '#e74c3c', previdencia_corp: '#c9a84c', outros: '#7f8c8d' }
+                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>Outras fontes de renda</div>
+                    {irAnalise.outrasRendas.map(function(r, idx) {
                       return (
                         <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-input)', borderRadius: '7px', border: '1px solid var(--border)', marginBottom: '4px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: corTipo[desc.tipo] || '#7f8c8d', flexShrink: 0 }} />
-                            <span style={{ fontSize: '13px', color: 'var(--text)' }}>{desc.descricao}</span>
+                            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: r.tributavel ? 'var(--gold)' : 'var(--text-dim)', flexShrink: 0 }} />
+                            <span style={{ fontSize: '13px', color: 'var(--text)' }}>{r.descricao}</span>
                           </div>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--red)', fontWeight: 600 }}>- {fmtBRL(desc.valor)}</span>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 600 }}>{fmtBRL(r.valor)}</div>
+                            <div style={{ fontSize: '10px', color: r.tributavel ? 'var(--gold)' : 'var(--text-dim)' }}>{r.tributavel ? 'Tributável' : 'Isento'}</div>
+                          </div>
                         </div>
                       )
                     })}
                   </div>
                 )}
-                {extracted.observacoes && (
-                  <div style={{ padding: '12px 14px', background: 'rgba(74,159,212,0.07)', border: '1px solid rgba(74,159,212,0.2)', borderRadius: '8px', fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.7 }}>
-                    📌 {extracted.observacoes}
+
+                {irAnalise.observacoes && (
+                  <div style={{ padding: '12px 14px', background: 'rgba(74,159,212,0.07)', border: '1px solid rgba(74,159,212,0.2)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.7 }}>
+                    📌 {irAnalise.observacoes}
                   </div>
                 )}
               </Card>
@@ -624,156 +442,86 @@ ${textoCompleto}`
       {hasData && (
         <div className="animate-in">
           <Card style={{ borderColor: 'var(--gold)' }}>
-            <CardTitle>Análise Tributária</CardTitle>
+            <CardTitle>Quanto investir em PGBL</CardTitle>
 
-            {/* Cards superiores */}
+            {/* Cards principais */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '16px' }}>
               <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
-                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>Renda bruta anual</div>
+                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>Renda compensável anual</div>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', fontWeight: 700 }}>{fmtBRLShort(rendaAnualNum)}</span>
               </div>
               <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
-                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>Alíquota marginal</div>
+                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>Alíquota marginal IR</div>
                 <AliquotaBadge pct={irInfo.aliquotaMarginal} />
-                {contribuiINSS && <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '6px' }}>Calculada sobre base líquida (− INSS)</div>}
               </div>
               <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
-                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>
-                  Limite PGBL (12% da renda bruta)
-                </div>
+                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>Limite PGBL (12%)</div>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 700 }}>{fmtBRLShort(pgblInfo.pgblIdeal)}/ano</span>
-                <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>{fmtBRLShort(pgblInfo.pgblIdeal / 12)}/mês</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '3px', fontFamily: 'var(--font-mono)' }}>{fmtBRLShort(pgblInfo.pgblIdeal / 12)}/mês</div>
               </div>
             </div>
 
-            {/* Waterfall base de cálculo */}
-            {(contribuiINSS || rendExclusivosNum > 0) && (
-              <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px 18px', marginBottom: '16px' }}>
-                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '12px' }}>Base de Cálculo do IR</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 13px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px' }}>
-                    <span>Renda bruta anual</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{fmtBRL(rendaAnualNum)}</span>
-                  </div>
-                  {rendExclusivosNum > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 13px', background: 'rgba(127,140,141,0.06)', borderRadius: '8px', border: '1px solid rgba(127,140,141,0.2)', fontSize: '13px', color: 'var(--text-muted)' }}>
-                      <div>
-                        <span>(−) Rendimentos com tributação exclusiva</span>
-                        <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>13º salário, PLR e similares — não entram nos 12% do PGBL</div>
-                      </div>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, flexShrink: 0, marginLeft: '12px' }}>− {fmtBRL(rendExclusivosNum)}</span>
-                    </div>
-                  )}
-                  {contribuiINSS && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 13px', background: 'rgba(74,159,212,0.06)', borderRadius: '8px', border: '1px solid rgba(74,159,212,0.2)', fontSize: '13px', color: '#4a9fd4' }}>
-                      <span>(−) INSS {inssOverride ? 'manual' : '(tabela progressiva 2024)'}</span>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>− {fmtBRL(inssAnualFinal)}</span>
-                    </div>
-                  )}
-                  {rendExclusivosNum > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 13px', background: 'var(--gold-dim)', borderRadius: '8px', border: '1px solid var(--gold)', fontSize: '13px' }}>
-                      <div>
-                        <span style={{ fontWeight: 600, color: 'var(--gold-light)', fontFamily: 'var(--font-display)' }}>Base compensável (= 12% PGBL)</span>
-                        <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>Igual à "Receita Bruta Tributável Compensável" da XP</div>
-                      </div>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--gold-light)', flexShrink: 0, marginLeft: '12px' }}>{fmtBRL(baseCompensavelAnual)}</span>
-                    </div>
-                  )}
-                  {contribuiINSS && (
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 13px', background: 'rgba(201,168,76,0.06)', borderRadius: '8px', border: '1px solid rgba(201,168,76,0.2)', fontSize: '13px', color: 'var(--gold)' }}>
-                        <span>(−) PGBL — 12% da base compensável</span>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>− {fmtBRL(pgblInfo.pgblIdeal)}</span>
-                      </div>
-                      <div style={{ height: '1px', background: 'var(--border)', margin: '2px 0' }} />
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 13px', background: 'rgba(26,153,85,0.07)', borderRadius: '8px', border: '1.5px solid rgba(26,153,85,0.3)', fontSize: '13px' }}>
-                        <span style={{ fontWeight: 700, color: 'var(--green)', fontFamily: 'var(--font-display)' }}>Base tributável com PGBL</span>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--green)' }}>{fmtBRL(comparativo.baseComPGBL)}</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-                <div style={{ marginTop: '10px', fontSize: '11px', color: 'var(--text-dim)', fontStyle: 'italic', lineHeight: 1.6 }}>
-                  ✓ INSS e PGBL são deduções independentes do IR (Receita Federal). Rendimentos com tributação exclusiva não compõem a base compensável.
-                </div>
-              </div>
-            )}
-
-            {/* Waterfall limite PGBL */}
-            <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px 18px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '12px' }}>Composição do Limite PGBL</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 13px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px' }}>
-                  <span>Limite dedutível anual (12% da base)</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{fmtBRL(pgblInfo.pgblIdeal)}</span>
+            {/* Waterfall quanto deve aportar */}
+            <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '18px 20px', marginBottom: '16px' }}>
+              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '14px' }}>Composição do Aporte Ideal</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: '13px', color: 'var(--text)' }}>Limite máximo dedutível (12% da renda)</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', fontWeight: 700 }}>{fmtBRL(pgblInfo.pgblIdeal)}</span>
                 </div>
                 {previdenciaCorpAnual > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 13px', background: 'rgba(26,153,85,0.06)', borderRadius: '8px', border: '1px solid rgba(26,153,85,0.2)', fontSize: '13px', color: 'var(--green)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(26,153,85,0.06)', borderRadius: '8px', border: '1px solid rgba(26,153,85,0.2)' }}>
                     <div>
-                      <span>(−) Previdência corporativa já descontada</span>
-                      {extracted && extracted.nomePrevidenciaCorp && <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>{extracted.nomePrevidenciaCorp}</div>}
+                      <span style={{ fontSize: '13px', color: 'var(--green)' }}>(-) Previdência corporativa já descontada</span>
+                      {irAnalise && irAnalise.nomePrevidenciaCorp && <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>{irAnalise.nomePrevidenciaCorp}</div>}
                     </div>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>− {fmtBRL(previdenciaCorpAnual)}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'var(--green)', fontWeight: 700 }}>- {fmtBRL(previdenciaCorpAnual)}</span>
                   </div>
                 )}
                 <div style={{ height: '1px', background: 'var(--border)', margin: '2px 0' }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 13px', background: pgblRestante > 0 ? 'var(--gold-dim)' : 'rgba(26,153,85,0.07)', borderRadius: '8px', border: pgblRestante > 0 ? '1.5px solid var(--gold)' : '1.5px solid rgba(26,153,85,0.35)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', background: pgblRestante > 0 ? 'var(--gold-dim)' : 'rgba(26,153,85,0.07)', borderRadius: '8px', border: pgblRestante > 0 ? '2px solid var(--gold)' : '2px solid rgba(26,153,85,0.35)' }}>
                   <div>
-                    <span style={{ fontSize: '13px', color: pgblRestante > 0 ? 'var(--gold-light)' : 'var(--green)', fontWeight: 700, fontFamily: 'var(--font-display)' }}>
-                      {pgblRestante > 0 ? 'Ainda pode aportar' : '✓ Limite 12% utilizado'}
-                    </span>
-                    {pgblRestante > 0 && <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>{fmtBRL(pgblRestante / 12)}/mês · economia adicional de {fmtBRL(economiaRestante)}/ano</div>}
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: pgblRestante > 0 ? 'var(--gold-light)' : 'var(--green)', fontFamily: 'var(--font-display)' }}>
+                      {pgblRestante > 0 ? '📌 Deve aportar em PGBL' : '✓ Limite 12% já utilizado'}
+                    </div>
+                    {pgblRestante > 0 && (
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                        <strong style={{ color: 'var(--gold-light)', fontFamily: 'var(--font-mono)' }}>{fmtBRL(pgblRestante / 12)}/mês</strong> · economia de {fmtBRL(economiaRestante)}/ano no IR
+                      </div>
+                    )}
                   </div>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', color: pgblRestante > 0 ? 'var(--gold-light)' : 'var(--green)', fontWeight: 800 }}>{fmtBRL(pgblRestante)}</span>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '20px', color: pgblRestante > 0 ? 'var(--gold-light)' : 'var(--green)', fontWeight: 900 }}>{fmtBRL(pgblRestante)}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>por ano</div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Comparativo IR — estilo XP */}
-            <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px 18px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '14px' }}>Impacto no Imposto de Renda</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-                <div style={{ background: 'rgba(204,44,31,0.06)', border: '1px solid rgba(204,44,31,0.2)', borderRadius: '10px', padding: '13px 15px' }}>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--red)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '6px' }}>IR sem PGBL</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', color: 'var(--red)', fontWeight: 700 }}>{fmtBRL(comparativo.irAnualSemPGBL)}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '3px' }}>estimativa anual</div>
-                </div>
-                <div style={{ background: 'rgba(26,153,85,0.06)', border: '1px solid rgba(26,153,85,0.2)', borderRadius: '10px', padding: '13px 15px' }}>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--green)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '6px' }}>IR com PGBL</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', color: 'var(--green)', fontWeight: 700 }}>{fmtBRL(comparativo.irAnualComPGBL)}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '3px' }}>estimativa anual</div>
-                </div>
-                <div style={{ background: 'var(--gold-dim)', border: '1.5px solid var(--gold)', borderRadius: '10px', padding: '13px 15px' }}>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--gold)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '6px' }}>Economia no IR</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', color: 'var(--gold-light)', fontWeight: 800 }}>{fmtBRL(comparativo.economia)}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '3px' }}>{fmtBRL(comparativo.economia / 12)}/mês</div>
-                </div>
+            {/* Comparativo IR */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+              <div style={{ background: 'rgba(204,44,31,0.06)', border: '1px solid rgba(204,44,31,0.2)', borderRadius: '10px', padding: '13px 15px' }}>
+                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--red)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '6px' }}>IR sem PGBL</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', color: 'var(--red)', fontWeight: 700 }}>{fmtBRL(comparativo.irAnualSemPGBL)}</div>
+                <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '3px' }}>estimativa anual</div>
               </div>
-            </div>
-
-            {/* Economias */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
-              <div style={{ background: 'rgba(26,153,85,0.08)', border: '1px solid rgba(26,153,85,0.3)', borderRadius: '10px', padding: '14px 16px' }}>
-                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--green)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>Economia fiscal total (100% do limite)</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', fontWeight: 700, color: 'var(--green)' }}>{fmtBRL(pgblInfo.economiaAnual)}/ano</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>{fmtBRL(pgblInfo.economiaAnual / 12)}/mês</div>
+              <div style={{ background: 'rgba(26,153,85,0.06)', border: '1px solid rgba(26,153,85,0.2)', borderRadius: '10px', padding: '13px 15px' }}>
+                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--green)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '6px' }}>IR com PGBL</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', color: 'var(--green)', fontWeight: 700 }}>{fmtBRL(comparativo.irAnualComPGBL)}</div>
+                <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '3px' }}>estimativa anual</div>
               </div>
-              <div style={{ background: previdenciaCorpAnual > 0 ? 'var(--gold-dim)' : 'rgba(26,153,85,0.08)', border: previdenciaCorpAnual > 0 ? '1px solid var(--gold)' : '1px solid rgba(26,153,85,0.3)', borderRadius: '10px', padding: '14px 16px' }}>
-                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: previdenciaCorpAnual > 0 ? 'var(--gold)' : 'var(--green)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>
-                  {previdenciaCorpAnual > 0 ? 'Economia adicional disponível' : 'Economia fiscal disponível'}
-                </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', fontWeight: 700, color: previdenciaCorpAnual > 0 ? 'var(--gold-light)' : 'var(--green)' }}>{fmtBRL(economiaRestante)}/ano</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>{fmtBRL(economiaRestante / 12)}/mês</div>
+              <div style={{ background: 'var(--gold-dim)', border: '1.5px solid var(--gold)', borderRadius: '10px', padding: '13px 15px' }}>
+                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--gold)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '6px' }}>Economia no IR</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', color: 'var(--gold-light)', fontWeight: 800 }}>{fmtBRL(comparativo.economia)}</div>
+                <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '3px' }}>{fmtBRL(comparativo.economia / 12)}/mês</div>
               </div>
             </div>
 
             <div style={{ padding: '14px 16px', background: 'var(--gold-dim)', border: '1px solid var(--gold)', borderRadius: '10px', fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.8 }}>
-              💡 <strong style={{ color: 'var(--text)', fontFamily: 'var(--font-display)' }}>Como funciona:</strong>{' '}
-              {previdenciaCorpAnual > 0
-                ? `Você já contribui com ${fmtBRL(previdenciaCorpAnual)}/ano via previdência corporativa. Ainda pode aportar mais ${fmtBRL(pgblRestante)}/ano (${fmtBRL(pgblRestante / 12)}/mês) para usar 100% do limite, gerando economia adicional de ${fmtBRL(economiaRestante)}/ano no IR.`
-                : contribuiINSS
-                  ? `O limite do PGBL é 12% da renda bruta (${fmtBRL(pgblInfo.pgblIdeal)}/ano). O INSS (${fmtBRL(inssAnualFinal)}/ano) e o PGBL são deduções independentes — a base do IR com PGBL é ${fmtBRL(comparativo.baseComPGBL)}/ano, gerando economia de ${fmtBRL(comparativo.economia)}/ano.`
-                  : `Contribuindo com ${fmtBRL(pgblInfo.pgblIdeal)}/ano no PGBL (12% da renda bruta), você deduz da base do IR. Com alíquota de ${(irInfo.aliquotaMarginal * 100).toFixed(1)}%, economia de ${fmtBRL(pgblInfo.economiaAnual)}/ano.`
+              💡 <strong style={{ color: 'var(--text)', fontFamily: 'var(--font-display)' }}>Recomendação:</strong>{' '}
+              {pgblRestante > 0
+                ? `Aportar ${fmtBRL(pgblRestante)}/ano (${fmtBRL(pgblRestante / 12)}/mês) em PGBL para aproveitar 100% do limite de 12%${previdenciaCorpAnual > 0 ? ', considerando o que já desconta via empresa.' : '.'} Economia de ${fmtBRL(economiaRestante)}/ano no IR com alíquota de ${(irInfo.aliquotaMarginal * 100).toFixed(1)}%.`
+                : `O limite de 12% já está sendo utilizado via previdência corporativa. Não há benefício adicional de PGBL.`
               }
             </div>
           </Card>
@@ -795,12 +543,12 @@ ${textoCompleto}`
               </div>
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '20px', lineHeight: 1.7 }}>
-              Projeção sobre o <strong style={{ color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>aporte restante de {fmtBRL(pgblRestante / 12)}/mês</strong> · rentabilidade real de 4% a.a. · restituições reinvestidas.
+              Projeção sobre o <strong style={{ color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>aporte de {fmtBRL(pgblRestante / 12)}/mês</strong> · rentabilidade real de 4% a.a. · restituições reinvestidas.
             </div>
             {projection.length > 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '24px' }}>
                 {[
-                  { label: 'Patrimônio PGBL em ' + anos + ' anos', value: fmtBRLShort(projection[projection.length - 1].patrimonioPGBL), color: 'var(--blue-light)' },
+                  { label: 'Patrimônio PGBL em ' + anos + 'a', value: fmtBRLShort(projection[projection.length - 1].patrimonioPGBL), color: 'var(--blue-light)' },
                   { label: 'Restituições acumuladas', value: fmtBRLShort(projection[projection.length - 1].restituicoes), color: 'var(--gold)' },
                   { label: 'Total', value: fmtBRLShort(projection[projection.length - 1].total), color: 'var(--green)' },
                 ].map(function(m) {
@@ -864,10 +612,10 @@ ${textoCompleto}`
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-dim)' }}>
           <div style={{ fontSize: '52px', marginBottom: '16px' }}>📊</div>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: '20px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 700 }}>
-            {mode === 'manual' ? 'Informe a renda acima' : 'Envie seus documentos acima'}
+            {mode === 'manual' ? 'Informe a renda acima' : 'Envie a declaração de IR acima'}
           </div>
           <div style={{ fontSize: '14px', maxWidth: '360px', margin: '0 auto', lineHeight: 1.7, color: 'var(--text-dim)' }}>
-            {mode === 'manual' ? 'Insira a renda bruta tributável para ver a análise do PGBL.' : 'Faça upload dos holerites ou declaração de IR para análise automática.'}
+            {mode === 'manual' ? 'Preencha a renda para ver a recomendação de aporte em PGBL.' : 'Faça upload da declaração de IR para análise automática.'}
           </div>
         </div>
       )}
