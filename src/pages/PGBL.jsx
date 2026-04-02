@@ -262,23 +262,35 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
       if (textoCompleto.length > 5500) textoCompleto = truncarTexto(textoCompleto, 5500)
       setLoadingMsg('Analisando com IA...')
 
-      const prompt = `Especialista tributário BR. Analise os documentos e extraia JSON puro.
+      const prompt = `Você é um extrator de dados tributários. Analise os documentos e retorne APENAS JSON válido, sem texto antes ou depois.
 
-Tributáveis: salário, 13º, férias+1/3, pró-labore, bônus folha, aluguéis PF, JCP, pensão alimentícia.
-Não tributáveis: dividendos, PLR, FGTS, indenização trabalhista, seguro-desemprego.
-Descontos: INSS, IRRF, previdência corporativa (Prev, PGBL corp, Fundo Pensão).
-Se múltiplos holerites, some os valores anuais.
+REGRAS: Tributáveis: salário, 13º, férias+1/3, pró-labore, bônus folha, aluguéis PF, JCP, pensão alimentícia. Não tributáveis: dividendos, PLR, FGTS, indenização, seguro-desemprego. Descontos: INSS, IRRF, previdência corporativa. Se múltiplos holerites, some os valores. Se não encontrar algum dado, use 0.
 
-Responda SOMENTE JSON:
-{"rendaMensalTributavel":número,"rendaAnualTributavel":número,"rendaAnualNaoTributavel":número,"inss":número,"irrf":número,"meses":número,"previdenciaCorpMensal":número,"previdenciaCorpAnual":número,"nomePrevidenciaCorp":"string ou null","fontes":[{"descricao":"string","valor":número,"tributavel":boolean,"categoria":"trabalho|alugueis|investimentos|empresa|outros|nao_tributavel","observacao":"string ou null"}],"descontos":[{"descricao":"string","valor":número,"tipo":"inss|irrf|previdencia_corp|outros"}],"observacoes":"string"}
+RETORNE EXATAMENTE ESTE FORMATO JSON:
+{"rendaMensalTributavel":0,"rendaAnualTributavel":0,"rendaAnualNaoTributavel":0,"inss":0,"irrf":0,"meses":12,"previdenciaCorpMensal":0,"previdenciaCorpAnual":0,"nomePrevidenciaCorp":null,"fontes":[{"descricao":"string","valor":0,"tributavel":true,"categoria":"trabalho","observacao":null}],"descontos":[{"descricao":"string","valor":0,"tipo":"inss"}],"observacoes":"string"}
 
 DOCUMENTOS:
 ${textoCompleto}`
 
-      const raw = await callClaude([{ role: 'user', content: prompt }], 1000)
-      const clean = raw.replace(/```json|```/g, '').trim()
-      const si = clean.indexOf('{'), ei = clean.lastIndexOf('}')
-      const parsed = JSON.parse(si >= 0 ? clean.slice(si, ei + 1) : clean)
+      const raw = await callClaude([{ role: 'user', content: prompt }], 1200)
+
+      let parsed
+      try {
+        const clean = raw.replace(/```json|```/g, '').trim()
+        const si = clean.indexOf('{')
+        const ei = clean.lastIndexOf('}')
+        if (si === -1 || ei === -1) throw new Error('sem JSON')
+        parsed = JSON.parse(clean.slice(si, ei + 1))
+      } catch (parseErr) {
+        setLoadingMsg('Refinando análise...')
+        const prompt2 = 'Extraia rendimentos do texto abaixo. Retorne SOMENTE JSON sem texto adicional:\n{"rendaMensalTributavel":0,"rendaAnualTributavel":0,"rendaAnualNaoTributavel":0,"inss":0,"irrf":0,"meses":12,"previdenciaCorpMensal":0,"previdenciaCorpAnual":0,"nomePrevidenciaCorp":null,"fontes":[],"descontos":[],"observacoes":""}\n\nTEXTO: ' + textoCompleto.slice(0, 2000)
+        const raw2 = await callClaude([{ role: 'user', content: prompt2 }], 800)
+        const clean2 = raw2.replace(/```json|```/g, '').trim()
+        const si2 = clean2.indexOf('{')
+        const ei2 = clean2.lastIndexOf('}')
+        if (si2 === -1) throw new Error('Não foi possível extrair dados do documento. Verifique se o PDF contém texto selecionável (não é uma imagem escaneada).')
+        parsed = JSON.parse(clean2.slice(si2, ei2 + 1))
+      }
 
       upd('extracted')({
         rendaMensal: parsed.rendaMensalTributavel || 0,
