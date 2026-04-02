@@ -54,10 +54,14 @@ export function generatePDF(appData, sections, clientInfo) {
   .cover-mod-desc{font-size:10.5px;color:rgba(255,255,255,0.38);line-height:1.55;}
 
   .content{padding:14mm 15mm 14mm;}
+  .module{page-break-before:always;break-before:page;padding-top:6mm;}
+  .module:first-child{page-break-before:avoid;break-before:avoid;padding-top:0;}
   .section{margin-bottom:22px;padding-bottom:8px;border-bottom:1.5px solid #e8edf5;page-break-inside:avoid;break-inside:avoid;}
   .section:last-of-type{border-bottom:none;}
   .section-tag{font-family:'Montserrat',sans-serif;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:#c9a84c;font-weight:700;margin-bottom:5px;}
-  .section-title{font-family:'Montserrat',sans-serif;font-size:17px;font-weight:800;color:#1a2744;margin-bottom:14px;}
+  .section-title{font-family:'Montserrat',sans-serif;font-size:17px;font-weight:800;color:#1a2744;margin-bottom:8px;}
+  .section-desc{font-size:12px;color:#5a7a9a;line-height:1.6;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #e8edf5;}
+  .obs-box{background:#fffbf0;border:1px solid #e8d070;border-radius:9px;padding:14px 16px;margin:14px 0;font-size:12px;color:#4a3a10;line-height:1.8;}
   .nb{page-break-inside:avoid;break-inside:avoid;}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;}
@@ -167,9 +171,11 @@ export function generatePDF(appData, sections, clientInfo) {
 
 <div class="content">
 
+<div class="module">
 <div class="section">
   <div class="section-tag">Módulo 01</div>
   <div class="section-title">Gestão de Riscos</div>
+  <div class="section-desc">O planejamento de gestão de riscos tem como objetivo proteger o patrimônio e a renda do investidor durante a sua vida ativa. Analisamos o gap entre o patrimônio atual e a meta de aposentadoria, identificando a necessidade de cobertura por invalidez ou morte prematura para garantir a segurança financeira da família.</div>
   ${riscos ? `
   <div class="grid3 nb">
     <div class="card"><div class="card-label">Patrimônio atual</div><div class="card-value">${fmtBRLShort(riscos.patrimonioAtual || 0)}</div></div>
@@ -197,10 +203,13 @@ export function generatePDF(appData, sections, clientInfo) {
   ${(riscos.gapDescoberto || 0) > 0 ? `<div class="insight">${(riscos.coberturaContratada || 0) > 0 ? 'Considerando a cobertura já contratada de <strong>' + fmtBRL(riscos.coberturaContratada) + '</strong>, ainda há um gap de <strong>' + fmtBRL(riscos.gapDescoberto) + '</strong> a ser coberto com seguro adicional.' : 'Recomenda-se uma cobertura de <strong>' + fmtBRL(riscos.coberturaNecessaria || 0) + '</strong>, correspondente ao gap entre o patrimônio atual e a meta de aposentadoria.'}</div>` : ''}
   ` : '<div class="empty-note">Nenhum dado preenchido para este módulo.</div>'}
 </div>
+</div>
 
+<div class="module">
 <div class="section">
   <div class="section-tag">Módulo 02</div>
   <div class="section-title">Planejamento Sucessório</div>
+  <div class="section-desc">O planejamento sucessório visa organizar a transferência do patrimônio aos herdeiros da forma mais eficiente possível, minimizando os custos de inventário e garantindo que os bens cheguem ao destino certo. Consolidamos o patrimônio inventariável com base no regime matrimonial e estimamos os custos totais do processo sucessório.</div>
   ${sucessao ? `
   <div class="nb"><table style="margin-bottom:12px;"><tr><th>Regime matrimonial</th><td>${REGIMES[sucessao.regimeCasamento] || '—'}</td></tr></table></div>
   ${sucessao.imoveis && sucessao.imoveis.some(function(im) { return im.valor }) ? `<div class="nb"><table><thead><tr><th>Imóvel</th><th>Tipo</th>${sucessao.regimeCasamento === 'comunhao_parcial' ? '<th>Aquisição</th>' : ''}<th class="right">Valor</th><th class="right">Inventariável</th></tr></thead><tbody>${sucessao.imoveis.map(function(im, i) { const val = im.valor ? (parseInt(im.valor) / 100) : 0; const frac = sucessao.regimeCasamento === 'separacao_total' ? 1 : (sucessao.regimeCasamento === 'comunhao_universal' ? 0.5 : (im.antesCasamento ? 1 : 0.5)); return '<tr><td>Imóvel ' + (i+1) + '</td><td>' + (im.tipo||'—') + '</td>' + (sucessao.regimeCasamento === 'comunhao_parcial' ? '<td>' + (im.antesCasamento ? 'Antes' : 'Depois') + ' do casamento</td>' : '') + '<td class="right mono">' + fmtBRL(val) + '</td><td class="right mono">' + fmtBRL(val * frac) + '</td></tr>' }).join('')}</tbody></table></div>` : ''}
@@ -236,10 +245,13 @@ export function generatePDF(appData, sections, clientInfo) {
   </tbody></table></div>
   ` : '<div class="empty-note">Nenhum dado preenchido para este módulo.</div>'}
 </div>
+</div>
 
+<div class="module">
 <div class="section">
   <div class="section-tag">Módulo 03</div>
-  <div class="section-title">PGBL & Planejamento Tributário</div>
+  <div class="section-title">Planejamento Tributário</div>
+  <div class="section-desc">O objetivo do planejamento tributário é fazer o investidor pagar menos imposto de formas totalmente legais, seja através de estratégias de renda ou de investimento. O PGBL é uma das principais ferramentas disponíveis, permitindo deduzir até 12% da renda bruta tributável e gerar economia real no Imposto de Renda, com o capital continuando a crescer dentro do plano.</div>
   ${pgbl ? `
   <div class="grid2 nb">
     <div class="card"><div class="card-label">Renda bruta anual</div><div class="card-value">${fmtBRL(pgbl.rendaAnual || 0)}</div></div>
@@ -252,7 +264,9 @@ export function generatePDF(appData, sections, clientInfo) {
     <thead><tr><th>Ano</th><th class="right">Aportado</th><th class="right">Patrimônio PGBL</th><th class="right">Restituições</th><th class="right">Total</th></tr></thead>
     <tbody>${pgbl.projecao.filter(function(row) { const len = pgbl.projecao.length; if (len <= 15) return true; return [1,2,3,5,7,10,15,20,25,30].includes(row.ano) }).map(function(row, idx, arr) { const isLast = idx === arr.length - 1; return '<tr class="' + (isLast ? 'highlight' : '') + '"><td class="bold">' + row.ano + '</td><td class="right mono">' + fmtBRL(row.aportado) + '</td><td class="right mono">' + fmtBRL(row.patrimonioPGBL) + '</td><td class="right mono">' + fmtBRL(row.restituicoes) + '</td><td class="right mono bold">' + fmtBRL(row.total) + '</td></tr>' }).join('')}</tbody>
   </table></div>` : ''}
+  ${pgbl.observacaoTributaria ? `<div class="obs-box"><strong>Observações do Planejamento Tributário:</strong><br/><br/>${pgbl.observacaoTributaria.replace(/\n/g, '<br/>')}</div>` : ''}
   ` : '<div class="empty-note">Nenhum dado preenchido para este módulo.</div>'}
+</div>
 </div>
 
 <div class="footer">
