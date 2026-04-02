@@ -5,10 +5,10 @@ import { generatePDF } from '../pdfGenerator'
 const NAV_ITEMS = [
   { path: '/riscos', icon: '🛡️', label: 'Gestão de Riscos', sub: 'Cobertura & proteção' },
   { path: '/sucessao', icon: '🏛️', label: 'Sucessão', sub: 'Inventário & custos' },
-  { path: '/pgbl', icon: '📊', label: 'PGBL Tributário', sub: 'Planejamento fiscal' },
+  { path: '/pgbl', icon: '📊', label: 'Planejamento Tributário', sub: 'Benefício fiscal PGBL' },
 ]
 
-function PDFModal({ appData, clientInfo, onClose }) {
+function PDFModal({ appData, onClose }) {
   const [selected, setSelected] = useState(['riscos', 'sucessao', 'pgbl'])
   const [loading, setLoading] = useState(false)
 
@@ -22,7 +22,7 @@ function PDFModal({ appData, clientInfo, onClose }) {
     if (selected.length === 0) return
     setLoading(true)
     setTimeout(function() {
-      generatePDF(appData, selected, clientInfo)
+      generatePDF(appData, selected)
       setLoading(false)
     }, 150)
   }
@@ -30,7 +30,7 @@ function PDFModal({ appData, clientInfo, onClose }) {
   const modules = [
     { key: 'riscos', icon: '🛡️', label: 'Gestão de Riscos' },
     { key: 'sucessao', icon: '🏛️', label: 'Sucessão' },
-    { key: 'pgbl', icon: '📊', label: 'PGBL Tributário' },
+    { key: 'pgbl', icon: '📊', label: 'Planejamento Tributário' },
   ]
 
   return (
@@ -46,16 +46,8 @@ function PDFModal({ appData, clientInfo, onClose }) {
           Gerar Relatório PDF
         </div>
         <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px', lineHeight: 1.6 }}>
-          Selecione os módulos a incluir. Módulos não preenchidos aparecerão em branco.
+          Selecione os módulos a incluir no PDF. Módulos não preenchidos aparecerão em branco no relatório.
         </div>
-
-        {/* Client info preview */}
-        {(clientInfo.clientName || clientInfo.advisorName) && (
-          <div style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold)', borderRadius: '10px', padding: '12px 14px', marginBottom: '18px', fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.7 }}>
-            {clientInfo.clientName && <div>👤 Cliente: <strong style={{ color: 'var(--text)' }}>{clientInfo.clientName}</strong></div>}
-            {clientInfo.advisorName && <div>🤝 Assessor: <strong style={{ color: 'var(--text)' }}>{clientInfo.advisorName}</strong></div>}
-          </div>
-        )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '28px' }}>
           {modules.map(function(mod) {
@@ -120,12 +112,13 @@ function PDFModal({ appData, clientInfo, onClose }) {
   )
 }
 
-export default function Layout({ theme, onToggleTheme, appData, clientInfo }) {
+export default function Layout({ theme, onToggleTheme, appData }) {
   const location = useLocation()
   const [showPDF, setShowPDF] = useState(false)
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+      {/* ── Sidebar ── */}
       <aside className="sidebar" style={{
         width: '255px', flexShrink: 0,
         background: 'var(--bg-sidebar)',
@@ -133,6 +126,7 @@ export default function Layout({ theme, onToggleTheme, appData, clientInfo }) {
         display: 'flex', flexDirection: 'column',
         position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 100,
       }}>
+        {/* Logo */}
         <div style={{ padding: '28px 24px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontSize: '11px', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--gold-sidebar)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '5px' }}>
             Planejamento
@@ -142,6 +136,7 @@ export default function Layout({ theme, onToggleTheme, appData, clientInfo }) {
           </div>
         </div>
 
+        {/* Nav */}
         <nav style={{ padding: '14px 10px', flex: 1 }}>
           {NAV_ITEMS.map(function(item) {
             const active = location.pathname === item.path
@@ -170,6 +165,7 @@ export default function Layout({ theme, onToggleTheme, appData, clientInfo }) {
           })}
         </nav>
 
+        {/* PDF & Theme buttons */}
         <div style={{ padding: '14px 10px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <button
             onClick={function() { setShowPDF(true) }}
@@ -179,7 +175,8 @@ export default function Layout({ theme, onToggleTheme, appData, clientInfo }) {
               background: 'linear-gradient(135deg,rgba(181,134,42,0.25),rgba(201,168,76,0.15))',
               border: '1px solid rgba(201,168,76,0.35)',
               color: 'var(--gold-sidebar-light)', fontSize: '13px', fontWeight: 700,
-              fontFamily: 'var(--font-display)', cursor: 'pointer', transition: 'all 0.18s',
+              fontFamily: 'var(--font-display)', cursor: 'pointer',
+              transition: 'all 0.18s',
             }}
             onMouseEnter={function(e) { e.currentTarget.style.background = 'rgba(201,168,76,0.25)' }}
             onMouseLeave={function(e) { e.currentTarget.style.background = 'linear-gradient(135deg,rgba(181,134,42,0.25),rgba(201,168,76,0.15))' }}
@@ -188,6 +185,7 @@ export default function Layout({ theme, onToggleTheme, appData, clientInfo }) {
             Gerar PDF
           </button>
 
+          {/* Theme toggle */}
           <button
             onClick={onToggleTheme}
             style={{
@@ -207,6 +205,7 @@ export default function Layout({ theme, onToggleTheme, appData, clientInfo }) {
         </div>
       </aside>
 
+      {/* ── Main content ── */}
       <main className="main-content" style={{
         flex: 1, marginLeft: '255px', minHeight: '100vh',
         padding: '40px 40px 60px', maxWidth: '1020px',
@@ -216,6 +215,7 @@ export default function Layout({ theme, onToggleTheme, appData, clientInfo }) {
         </div>
       </main>
 
+      {/* ── Mobile bottom nav ── */}
       <nav className="mobile-nav" style={{
         display: 'none', position: 'fixed', bottom: 0, left: 0, right: 0,
         background: 'var(--bg-sidebar)', borderTop: '1px solid rgba(255,255,255,0.1)',
@@ -234,13 +234,14 @@ export default function Layout({ theme, onToggleTheme, appData, clientInfo }) {
             </NavLink>
           )
         })}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '6px 16px', cursor: 'pointer' }} onClick={function() { setShowPDF(true) }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '6px 16px' }} onClick={function() { setShowPDF(true) }}>
           <span style={{ fontSize: '22px' }}>📄</span>
-          <span style={{ fontSize: '10px', color: 'rgba(200,216,240,0.5)', fontFamily: 'var(--font-display)' }}>PDF</span>
+          <span style={{ fontSize: '10px', color: 'rgba(200,216,240,0.5)', fontWeight: 400, fontFamily: 'var(--font-display)' }}>PDF</span>
         </div>
       </nav>
 
-      {showPDF && <PDFModal appData={appData} clientInfo={clientInfo} onClose={function() { setShowPDF(false) }} />}
+      {/* ── PDF Modal ── */}
+      {showPDF && <PDFModal appData={appData} onClose={function() { setShowPDF(false) }} />}
     </div>
   )
 }
