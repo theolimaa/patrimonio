@@ -144,7 +144,7 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
   const [error, setError] = React.useState('')
 
   const { mode, rendaMensal, rendaAnual, syncFrom, contribuiINSS, inssManual, inssOverride,
-    rendExclusivos, holerites, irFile, extracted, irAnalise, anos, showTable } = formState
+    rendExclusivos, holerites, irFile, extracted, irAnalise, anos, showTable, observacaoTributaria } = formState
 
   function upd(key) { return function(val) { setFormState(function(prev) { return { ...prev, [key]: val } }) } }
 
@@ -192,7 +192,8 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
     if (hasData) {
       onDataChange({ rendaAnual: rendaAnualNum, rendaMensal: rendaMensalNum, inssAnual: inssAnualFinal,
         aliquotaMarginal: irInfo.aliquotaMarginal, pgblIdeal: pgblInfo.pgblIdeal, pgblRestante,
-        previdenciaCorpAnual, economiaAnual: pgblInfo.economiaAnual, economiaRestante, comparativo, projecao: projection, anos })
+        previdenciaCorpAnual, economiaAnual: pgblInfo.economiaAnual, economiaRestante, comparativo, projecao: projection, anos,
+        observacaoTributaria: observacaoTributaria || '' })
     }
   }, [rendaAnualNum, anos, inssAnualFinal, previdenciaCorpAnual])
 
@@ -577,6 +578,33 @@ RETORNE SOMENTE ESTE JSON:
           </Card>
         </div>
       )}
+
+      {/* Observação do planejamento tributário */}
+      <Card>
+        <CardTitle>📝 Planejamento Tributário — Observações</CardTitle>
+        <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.7 }}>
+          Adicione estratégias, recomendações ou observações sobre o planejamento tributário do cliente. Este texto será incluído no relatório PDF.
+        </div>
+        <textarea
+          value={observacaoTributaria || ''}
+          onChange={function(e) { upd('observacaoTributaria')(e.target.value) }}
+          placeholder="Ex: O cliente possui rendimentos de aluguéis que podem ser otimizados via holding familiar. Recomenda-se avaliar migração para tributação via CNPJ para redução da carga tributária. Além disso, o investimento em PGBL representa uma economia imediata de R$ X no IR com potencial de crescimento patrimonial de longo prazo..."
+          rows={6}
+          style={{
+            width: '100%', background: 'var(--bg-input)', border: '1.5px solid var(--border)',
+            borderRadius: '10px', padding: '14px 16px', color: 'var(--text)', fontSize: '14px',
+            fontFamily: 'var(--font-body)', lineHeight: 1.7, outline: 'none', resize: 'vertical',
+            transition: 'border-color 0.2s', boxSizing: 'border-box',
+          }}
+          onFocus={function(e) { e.target.style.borderColor = 'var(--gold)' }}
+          onBlur={function(e) { e.target.style.borderColor = 'var(--border)' }}
+        />
+        {observacaoTributaria && (
+          <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-dim)', textAlign: 'right' }}>
+            {observacaoTributaria.length} caracteres · aparecerá no PDF
+          </div>
+        )}
+      </Card>
 
       {!hasData && !loading && (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-dim)' }}>
