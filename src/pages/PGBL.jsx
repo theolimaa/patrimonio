@@ -194,9 +194,9 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
     ? (syncFrom === 'anual' ? centsToNum(rendaAnual) : centsToNum(rendaMensal) * 12)
     : (extracted ? extracted.rendaAnual : 0)
 
-  // Rendimentos com tributação exclusiva (13º automático + PLR manual)
-  const decimo13Auto = formState.desconta13 ? rendaMensalNum : 0
-  const rendExclusivosNum = decimo13Auto + centsToNum(rendExclusivos || '')
+  // Rendimentos exclusivos = apenas PLR/bônus informados manualmente
+  // (13º já é excluído automaticamente: salário × 12 não inclui o 13º)
+  const rendExclusivosNum = centsToNum(rendExclusivos || '')
 
   // INSS: automático (tabela 2024) ou manual
   const inssAutoMensal = contribuiINSS ? calcINSSMensal(rendaMensalNum) : 0
@@ -320,61 +320,41 @@ ${textoCompleto}`
       {/* ── MODO MANUAL ── */}
       {mode === 'manual' && (
         <Card>
-          <CardTitle>Renda Bruta Tributável</CardTitle>
+          <CardTitle>Renda Bruta Tributável Compensável</CardTitle>
+          <div style={{ padding: '10px 14px', background: 'rgba(74,159,212,0.06)', border: '1px solid rgba(74,159,212,0.2)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '20px', lineHeight: 1.7 }}>
+            ℹ️ Informe o <strong style={{ color: 'var(--text)' }}>salário mensal do holerite</strong> — o 13º já é excluído automaticamente por ter tributação exclusiva. Se houver PLR, informe abaixo.
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-            <MoneyField label="Renda mensal compensável" value={rendaMensal} onChange={handleRendaMensalChange} hint="Salário mensal excluindo 13º, férias e PLR — igual ao campo do Hub XP" />
-<MoneyField label="Receita Bruta Tributável Compensável (anual)" value={rendaAnual} onChange={handleRendaAnualChange} hint="Use o valor do mapeamento Hub XP — já exclui 13º, férias e PLR automaticamente" />
+            <MoneyField label="Salário mensal bruto" value={rendaMensal} onChange={handleRendaMensalChange} hint="Valor do holerite — 13º é excluído automaticamente" />
+            <MoneyField label="Renda anual (salário × 12)" value={rendaAnual} onChange={handleRendaAnualChange} hint="Calculado automaticamente ou edite aqui" />
           </div>
 
-          {/* Rendimentos com tributação exclusiva */}
-          <div style={{ background: 'rgba(74,159,212,0.05)', border: '1px solid rgba(74,159,212,0.2)', borderRadius: '12px', padding: '16px 18px', marginBottom: '20px' }}>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#4a9fd4', fontFamily: 'var(--font-display)', marginBottom: '10px' }}>
-              Rendimentos com tributação exclusiva
-            </div>
+          {/* PLR */}
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '18px', marginBottom: '4px' }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>PLR / Bônus com tributação exclusiva</div>
             <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '14px', lineHeight: 1.6 }}>
-              13º salário e PLR têm tributação exclusiva na fonte e <strong style={{ color: 'var(--text-muted)' }}>não entram na base compensável do PGBL</strong> — igual à "Receita Bruta Tributável Compensável" usada pela XP.
+              Opcional — participação nos lucros e bônus com tributação exclusiva. Serão excluídos da base compensável do PGBL.
             </div>
-
-            {/* Checkbox 13º automático */}
-            <button
-              onClick={function() { upd('desconta13')(!formState.desconta13) }}
-              style={{ display: 'flex', alignItems: 'center', gap: '10px', background: formState.desconta13 ? 'rgba(74,159,212,0.1)' : 'var(--bg-input)', border: formState.desconta13 ? '1.5px solid #4a9fd4' : '1.5px solid var(--border)', borderRadius: '9px', padding: '11px 14px', cursor: 'pointer', width: '100%', textAlign: 'left', marginBottom: '8px' }}>
-              <div style={{ width: '18px', height: '18px', borderRadius: '5px', background: formState.desconta13 ? '#4a9fd4' : 'transparent', border: formState.desconta13 ? '2px solid #4a9fd4' : '2px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {formState.desconta13 && <span style={{ color: '#fff', fontSize: '11px', fontWeight: 900 }}>✓</span>}
-              </div>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: formState.desconta13 ? '#4a9fd4' : 'var(--text)', fontFamily: 'var(--font-display)' }}>
-                  Deduzir 13º salário automaticamente
-                </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '1px' }}>
-                  {formState.desconta13 ? `− ${fmtBRL(rendaMensalNum)} (1 mês de salário excluído da base)` : 'Subtrai 1 mês de salário da base compensável'}
-                </div>
-              </div>
-            </button>
-
-            {/* Campo PLR/outros */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
+            <div style={{ maxWidth: '340px' }}>
               <MoneyField
-                label="PLR / outros rendimentos exclusivos (anual)"
+                label="PLR / bônus exclusivos (anual)"
                 value={rendExclusivos}
                 onChange={upd('rendExclusivos')}
-                hint="Participação nos lucros ou outros rendimentos com tributação exclusiva"
+                hint="Deixe em branco se não houver PLR"
               />
             </div>
-
-            {/* Resumo da base compensável */}
-            {(formState.desconta13 || rendExclusivosNum > 0) && (
+            {rendExclusivosNum > 0 && (
               <div style={{ marginTop: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                 <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px' }}>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', fontWeight: 600, fontFamily: 'var(--font-display)', marginBottom: '4px' }}>Renda bruta total</div>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', fontWeight: 600, fontFamily: 'var(--font-display)', marginBottom: '4px' }}>Salário anual (× 12)</div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 600 }}>{fmtBRL(rendaAnualNum)}</div>
                 </div>
                 <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px' }}>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#4a9fd4', fontWeight: 600, fontFamily: 'var(--font-display)', marginBottom: '4px' }}>(-) Exclusivos</div>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#4a9fd4', fontWeight: 600, fontFamily: 'var(--font-display)', marginBottom: '4px' }}>(−) PLR exclusivo</div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 600, color: '#4a9fd4' }}>− {fmtBRL(rendExclusivosNum)}</div>
                 </div>
                 <div style={{ background: 'rgba(26,153,85,0.07)', border: '1px solid rgba(26,153,85,0.25)', borderRadius: '8px', padding: '10px 12px' }}>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--green)', fontWeight: 600, fontFamily: 'var(--font-display)', marginBottom: '4px' }}>Base compensável</div>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--green)', fontWeight: 600, fontFamily: 'var(--font-display)', marginBottom: '4px' }}>Base compensável PGBL</div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: 'var(--green)' }}>{fmtBRL(baseCompensavelAnual)}</div>
                 </div>
               </div>
