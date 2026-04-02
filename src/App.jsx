@@ -44,6 +44,7 @@ export default function App() {
     irAnalise: null,
     anos: 10,
     showTable: false,
+    observacaoTributaria: '',
   })
 
   // ── PDF data ────────────────────────────────────────────────────────────────
