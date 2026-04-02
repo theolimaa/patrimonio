@@ -22,7 +22,7 @@ function PDFModal({ appData, onClose }) {
     if (selected.length === 0) return
     setLoading(true)
     setTimeout(function() {
-      generatePDF(appData, selected)
+      generatePDF(appData, selected, clientInfo)
       setLoading(false)
     }, 150)
   }
@@ -112,7 +112,7 @@ function PDFModal({ appData, onClose }) {
   )
 }
 
-export default function Layout({ theme, onToggleTheme, appData }) {
+export default function Layout({ theme, onToggleTheme, appData, clientInfo }) {
   const location = useLocation()
   const [showPDF, setShowPDF] = useState(false)
 
