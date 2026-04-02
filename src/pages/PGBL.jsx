@@ -167,6 +167,7 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
   const {
     mode, rendaMensal, rendaAnual, syncFrom,
     contribuiINSS, inssManual, inssOverride,
+    rendExclusivos,
     holerites, irFile, extracted, anos, showTable
   } = formState
 
@@ -193,6 +194,10 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
     ? (syncFrom === 'anual' ? centsToNum(rendaAnual) : centsToNum(rendaMensal) * 12)
     : (extracted ? extracted.rendaAnual : 0)
 
+  // Rendimentos com tributação exclusiva (13º automático + PLR manual)
+  const decimo13Auto = formState.desconta13 ? rendaMensalNum : 0
+  const rendExclusivosNum = decimo13Auto + centsToNum(rendExclusivos || '')
+
   // INSS: automático (tabela 2024) ou manual
   const inssAutoMensal = contribuiINSS ? calcINSSMensal(rendaMensalNum) : 0
   const inssAutoAnual  = contribuiINSS ? calcINSSAnual(rendaMensalNum, 12) : 0
@@ -200,21 +205,21 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
     ? (inssOverride && inssManual ? centsToNum(inssManual) : inssAutoAnual)
     : 0
 
-  // Base líquida (XP) = bruta - INSS
+  // Base compensável = Bruta − Rendimentos exclusivos (13º, PLR)
   const baseLiquidaAnual  = Math.max(0, rendaAnualNum - inssAnualFinal)
-  const baseLiquidaMensal = baseLiquidaAnual / 12
+  const baseCompensavelAnual = Math.max(0, rendaAnualNum - rendExclusivosNum)
 
-  // IR sobre a base líquida
-  const irInfo = calcIR(baseLiquidaMensal)
+  // IR sobre base sem rendimentos exclusivos e sem INSS
+  const irInfo = calcIR((baseCompensavelAnual - inssAnualFinal) / 12)
 
-  // PGBL
-  const pgblInfo = calcPGBL(rendaAnualNum, irInfo.aliquotaMarginal, inssAnualFinal)
+  // PGBL: limite 12% da base compensável
+  const pgblInfo = calcPGBL(rendaAnualNum, irInfo.aliquotaMarginal, inssAnualFinal, rendExclusivosNum)
   const previdenciaCorpAnual = extracted ? (extracted.previdenciaCorpAnual || 0) : 0
   const pgblRestante = Math.max(0, pgblInfo.pgblIdeal - previdenciaCorpAnual)
   const economiaRestante = pgblRestante * irInfo.aliquotaMarginal
 
   // Comparativo IR
-  const comparativo = calcComparativoIR(rendaAnualNum, inssAnualFinal, pgblInfo.pgblIdeal)
+  const comparativo = calcComparativoIR(rendaAnualNum, inssAnualFinal, pgblInfo.pgblIdeal, rendExclusivosNum)
 
   const projection = projetarPGBL(pgblRestante, irInfo.aliquotaMarginal, anos)
   const hasData = rendaAnualNum > 0
@@ -316,9 +321,64 @@ ${textoCompleto}`
       {mode === 'manual' && (
         <Card>
           <CardTitle>Renda Bruta Tributável</CardTitle>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
             <MoneyField label="Renda mensal" value={rendaMensal} onChange={handleRendaMensalChange} hint="Salário, pró-labore e demais tributáveis" />
             <MoneyField label="Renda anual" value={rendaAnual} onChange={handleRendaAnualChange} hint="Calculado automaticamente ou edite aqui" />
+          </div>
+
+          {/* Rendimentos com tributação exclusiva */}
+          <div style={{ background: 'rgba(74,159,212,0.05)', border: '1px solid rgba(74,159,212,0.2)', borderRadius: '12px', padding: '16px 18px', marginBottom: '20px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#4a9fd4', fontFamily: 'var(--font-display)', marginBottom: '10px' }}>
+              Rendimentos com tributação exclusiva
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '14px', lineHeight: 1.6 }}>
+              13º salário e PLR têm tributação exclusiva na fonte e <strong style={{ color: 'var(--text-muted)' }}>não entram na base compensável do PGBL</strong> — igual à "Receita Bruta Tributável Compensável" usada pela XP.
+            </div>
+
+            {/* Checkbox 13º automático */}
+            <button
+              onClick={function() { upd('desconta13')(!formState.desconta13) }}
+              style={{ display: 'flex', alignItems: 'center', gap: '10px', background: formState.desconta13 ? 'rgba(74,159,212,0.1)' : 'var(--bg-input)', border: formState.desconta13 ? '1.5px solid #4a9fd4' : '1.5px solid var(--border)', borderRadius: '9px', padding: '11px 14px', cursor: 'pointer', width: '100%', textAlign: 'left', marginBottom: '8px' }}>
+              <div style={{ width: '18px', height: '18px', borderRadius: '5px', background: formState.desconta13 ? '#4a9fd4' : 'transparent', border: formState.desconta13 ? '2px solid #4a9fd4' : '2px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {formState.desconta13 && <span style={{ color: '#fff', fontSize: '11px', fontWeight: 900 }}>✓</span>}
+              </div>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: formState.desconta13 ? '#4a9fd4' : 'var(--text)', fontFamily: 'var(--font-display)' }}>
+                  Deduzir 13º salário automaticamente
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '1px' }}>
+                  {formState.desconta13 ? `− ${fmtBRL(rendaMensalNum)} (1 mês de salário excluído da base)` : 'Subtrai 1 mês de salário da base compensável'}
+                </div>
+              </div>
+            </button>
+
+            {/* Campo PLR/outros */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
+              <MoneyField
+                label="PLR / outros rendimentos exclusivos (anual)"
+                value={rendExclusivos}
+                onChange={upd('rendExclusivos')}
+                hint="Participação nos lucros ou outros rendimentos com tributação exclusiva"
+              />
+            </div>
+
+            {/* Resumo da base compensável */}
+            {(formState.desconta13 || rendExclusivosNum > 0) && (
+              <div style={{ marginTop: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px' }}>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', fontWeight: 600, fontFamily: 'var(--font-display)', marginBottom: '4px' }}>Renda bruta total</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 600 }}>{fmtBRL(rendaAnualNum)}</div>
+                </div>
+                <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px' }}>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#4a9fd4', fontWeight: 600, fontFamily: 'var(--font-display)', marginBottom: '4px' }}>(-) Exclusivos</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 600, color: '#4a9fd4' }}>− {fmtBRL(rendExclusivosNum)}</div>
+                </div>
+                <div style={{ background: 'rgba(26,153,85,0.07)', border: '1px solid rgba(26,153,85,0.25)', borderRadius: '8px', padding: '10px 12px' }}>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--green)', fontWeight: 600, fontFamily: 'var(--font-display)', marginBottom: '4px' }}>Base compensável</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: 'var(--green)' }}>{fmtBRL(baseCompensavelAnual)}</div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Checkbox INSS */}
@@ -558,31 +618,55 @@ ${textoCompleto}`
               </div>
             </div>
 
-            {/* Waterfall base — mostra INSS se contribui */}
-            {contribuiINSS && (
+            {/* Waterfall base de cálculo */}
+            {(contribuiINSS || rendExclusivosNum > 0) && (
               <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px 18px', marginBottom: '16px' }}>
                 <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '12px' }}>Base de Cálculo do IR</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 13px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px' }}>
-                    <span>Renda bruta tributável anual</span>
+                    <span>Renda bruta anual</span>
                     <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{fmtBRL(rendaAnualNum)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 13px', background: 'rgba(74,159,212,0.06)', borderRadius: '8px', border: '1px solid rgba(74,159,212,0.2)', fontSize: '13px', color: '#4a9fd4' }}>
-                    <span>(−) INSS {inssOverride ? 'manual' : '(tabela progressiva 2024)'}</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>− {fmtBRL(inssAnualFinal)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 13px', background: 'rgba(201,168,76,0.06)', borderRadius: '8px', border: '1px solid rgba(201,168,76,0.2)', fontSize: '13px', color: 'var(--gold)' }}>
-                    <span>(−) PGBL — limite 12% da renda bruta</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>− {fmtBRL(pgblInfo.pgblIdeal)}</span>
-                  </div>
-                  <div style={{ height: '1px', background: 'var(--border)', margin: '2px 0' }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 13px', background: 'rgba(26,153,85,0.07)', borderRadius: '8px', border: '1.5px solid rgba(26,153,85,0.3)', fontSize: '13px' }}>
-                    <span style={{ fontWeight: 700, color: 'var(--green)', fontFamily: 'var(--font-display)' }}>Base tributável com PGBL</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--green)' }}>{fmtBRL(comparativo.baseComPGBL)}</span>
-                  </div>
+                  {rendExclusivosNum > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 13px', background: 'rgba(127,140,141,0.06)', borderRadius: '8px', border: '1px solid rgba(127,140,141,0.2)', fontSize: '13px', color: 'var(--text-muted)' }}>
+                      <div>
+                        <span>(−) Rendimentos com tributação exclusiva</span>
+                        <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>13º salário, PLR e similares — não entram nos 12% do PGBL</div>
+                      </div>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, flexShrink: 0, marginLeft: '12px' }}>− {fmtBRL(rendExclusivosNum)}</span>
+                    </div>
+                  )}
+                  {contribuiINSS && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 13px', background: 'rgba(74,159,212,0.06)', borderRadius: '8px', border: '1px solid rgba(74,159,212,0.2)', fontSize: '13px', color: '#4a9fd4' }}>
+                      <span>(−) INSS {inssOverride ? 'manual' : '(tabela progressiva 2024)'}</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>− {fmtBRL(inssAnualFinal)}</span>
+                    </div>
+                  )}
+                  {rendExclusivosNum > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 13px', background: 'var(--gold-dim)', borderRadius: '8px', border: '1px solid var(--gold)', fontSize: '13px' }}>
+                      <div>
+                        <span style={{ fontWeight: 600, color: 'var(--gold-light)', fontFamily: 'var(--font-display)' }}>Base compensável (= 12% PGBL)</span>
+                        <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>Igual à "Receita Bruta Tributável Compensável" da XP</div>
+                      </div>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--gold-light)', flexShrink: 0, marginLeft: '12px' }}>{fmtBRL(baseCompensavelAnual)}</span>
+                    </div>
+                  )}
+                  {contribuiINSS && (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 13px', background: 'rgba(201,168,76,0.06)', borderRadius: '8px', border: '1px solid rgba(201,168,76,0.2)', fontSize: '13px', color: 'var(--gold)' }}>
+                        <span>(−) PGBL — 12% da base compensável</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>− {fmtBRL(pgblInfo.pgblIdeal)}</span>
+                      </div>
+                      <div style={{ height: '1px', background: 'var(--border)', margin: '2px 0' }} />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 13px', background: 'rgba(26,153,85,0.07)', borderRadius: '8px', border: '1.5px solid rgba(26,153,85,0.3)', fontSize: '13px' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--green)', fontFamily: 'var(--font-display)' }}>Base tributável com PGBL</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--green)' }}>{fmtBRL(comparativo.baseComPGBL)}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div style={{ marginTop: '10px', fontSize: '11px', color: 'var(--text-dim)', fontStyle: 'italic', lineHeight: 1.6 }}>
-                  ✓ INSS e PGBL são deduções independentes — ambos reduzem a base do IR separadamente (legislação Receita Federal)
+                  ✓ INSS e PGBL são deduções independentes do IR (Receita Federal). Rendimentos com tributação exclusiva não compõem a base compensável.
                 </div>
               </div>
             )}
