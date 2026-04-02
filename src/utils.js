@@ -205,35 +205,68 @@ export async function extractPdfText(file) {
   if (file.type.startsWith('image/')) {
     return '[IMAGEM: ' + file.name + ']'
   }
-  return new Promise(function(resolve, reject) {
+  return new Promise(function(resolve) {
     const reader = new FileReader()
     reader.onload = async function(e) {
       try {
         const typedArray = new Uint8Array(e.target.result)
-        if (!window.pdfjsLib) {
-          await new Promise(function(res, rej) {
-            const script = document.createElement('script')
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
-            script.onload = res
-            script.onerror = rej
-            document.head.appendChild(script)
-          })
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
-        }
-        const pdf = await window.pdfjsLib.getDocument({ data: typedArray }).promise
+
+        // Importa pdfjs-dist via npm (mais confiável que CDN)
+        const pdfjsLib = await import('pdfjs-dist')
+
+        // Worker inline para evitar problemas de CORS
+        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+          'pdfjs-dist/build/pdf.worker.min.mjs',
+          import.meta.url
+        ).toString()
+
+        const pdf = await pdfjsLib.getDocument({
+          data: typedArray,
+          useSystemFonts: true,
+          disableFontFace: false,
+        }).promise
+
         let fullText = ''
+
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i)
-          const content = await page.getTextContent()
-          fullText += 'Página ' + i + ':\n' + content.items.map(function(item) { return item.str }).join(' ') + '\n\n'
+
+          // Extrai texto com opções expandidas para PDFs do governo
+          const content = await page.getTextContent({
+            includeMarkedContent: true,
+            disableNormalization: false,
+          })
+
+          const pageText = content.items
+            .filter(function(item) { return item.str && item.str.trim() })
+            .map(function(item) { return item.str })
+            .join(' ')
+
+          if (pageText.trim()) {
+            fullText += 'Página ' + i + ':\n' + pageText + '\n\n'
+          }
+
+          // Também tenta annotations (campos de formulário)
+          try {
+            const annotations = await page.getAnnotations()
+            const formFields = annotations
+              .filter(function(a) { return a.fieldValue || a.buttonValue })
+              .map(function(a) { return (a.fieldName || '') + ': ' + (a.fieldValue || a.buttonValue || '') })
+              .filter(function(s) { return s.trim().length > 2 })
+            if (formFields.length > 0) {
+              fullText += 'Campos do formulário (página ' + i + '):\n' + formFields.join('\n') + '\n\n'
+            }
+          } catch (annotErr) {
+            // ignora erro de annotations
+          }
         }
-        resolve(fullText.trim() || 'Não foi possível extrair texto.')
+
+        resolve(fullText.trim() || 'Texto não extraído — PDF pode ser imagem escaneada.')
       } catch (err) {
         resolve('Erro ao ler PDF: ' + err.message)
       }
     }
-    reader.onerror = reject
+    reader.onerror = function() { resolve('Erro ao ler arquivo.') }
     reader.readAsArrayBuffer(file)
   })
 }
