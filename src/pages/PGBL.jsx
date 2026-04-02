@@ -551,7 +551,7 @@ ${textoCompleto}`
               </div>
               <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
                 <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>
-                  Limite PGBL (12%{contribuiINSS ? ' da base líquida' : ''})
+                  Limite PGBL (12% da renda bruta)
                 </div>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 700 }}>{fmtBRLShort(pgblInfo.pgblIdeal)}/ano</span>
                 <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>{fmtBRLShort(pgblInfo.pgblIdeal / 12)}/mês</div>
@@ -561,21 +561,28 @@ ${textoCompleto}`
             {/* Waterfall base — mostra INSS se contribui */}
             {contribuiINSS && (
               <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px 18px', marginBottom: '16px' }}>
-                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '12px' }}>Base de Cálculo do PGBL</div>
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '12px' }}>Base de Cálculo do IR</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 13px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px' }}>
                     <span>Renda bruta tributável anual</span>
                     <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{fmtBRL(rendaAnualNum)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 13px', background: 'rgba(74,159,212,0.06)', borderRadius: '8px', border: '1px solid rgba(74,159,212,0.2)', fontSize: '13px', color: '#4a9fd4' }}>
-                    <span>(−) INSS {inssOverride ? 'manual' : 'calculado (tabela 2024)'}</span>
+                    <span>(−) INSS {inssOverride ? 'manual' : '(tabela progressiva 2024)'}</span>
                     <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>− {fmtBRL(inssAnualFinal)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 13px', background: 'rgba(201,168,76,0.06)', borderRadius: '8px', border: '1px solid rgba(201,168,76,0.2)', fontSize: '13px', color: 'var(--gold)' }}>
+                    <span>(−) PGBL — limite 12% da renda bruta</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>− {fmtBRL(pgblInfo.pgblIdeal)}</span>
                   </div>
                   <div style={{ height: '1px', background: 'var(--border)', margin: '2px 0' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 13px', background: 'rgba(26,153,85,0.07)', borderRadius: '8px', border: '1.5px solid rgba(26,153,85,0.3)', fontSize: '13px' }}>
-                    <span style={{ fontWeight: 700, color: 'var(--green)', fontFamily: 'var(--font-display)' }}>Base líquida para PGBL (= 12%)</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--green)' }}>{fmtBRL(baseLiquidaAnual)}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--green)', fontFamily: 'var(--font-display)' }}>Base tributável com PGBL</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--green)' }}>{fmtBRL(comparativo.baseComPGBL)}</span>
                   </div>
+                </div>
+                <div style={{ marginTop: '10px', fontSize: '11px', color: 'var(--text-dim)', fontStyle: 'italic', lineHeight: 1.6 }}>
+                  ✓ INSS e PGBL são deduções independentes — ambos reduzem a base do IR separadamente (legislação Receita Federal)
                 </div>
               </div>
             )}
@@ -653,7 +660,7 @@ ${textoCompleto}`
               {previdenciaCorpAnual > 0
                 ? `Você já contribui com ${fmtBRL(previdenciaCorpAnual)}/ano via previdência corporativa. Ainda pode aportar mais ${fmtBRL(pgblRestante)}/ano (${fmtBRL(pgblRestante / 12)}/mês) para usar 100% do limite, gerando economia adicional de ${fmtBRL(economiaRestante)}/ano no IR.`
                 : contribuiINSS
-                  ? `Considerando o INSS de ${fmtBRL(inssAnualFinal)}/ano, a base para o PGBL é de ${fmtBRL(baseLiquidaAnual)}/ano. Aportando ${fmtBRL(pgblInfo.pgblIdeal)}/ano (12% da base), a economia no IR é de ${fmtBRL(comparativo.economia)}/ano.`
+                  ? `O limite do PGBL é 12% da renda bruta (${fmtBRL(pgblInfo.pgblIdeal)}/ano). O INSS (${fmtBRL(inssAnualFinal)}/ano) e o PGBL são deduções independentes — a base do IR com PGBL é ${fmtBRL(comparativo.baseComPGBL)}/ano, gerando economia de ${fmtBRL(comparativo.economia)}/ano.`
                   : `Contribuindo com ${fmtBRL(pgblInfo.pgblIdeal)}/ano no PGBL (12% da renda bruta), você deduz da base do IR. Com alíquota de ${(irInfo.aliquotaMarginal * 100).toFixed(1)}%, economia de ${fmtBRL(pgblInfo.economiaAnual)}/ano.`
               }
             </div>
