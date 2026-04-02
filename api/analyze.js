@@ -15,7 +15,6 @@ export default async function handler(req, res) {
   try {
     const { messages, max_tokens, pdf_base64 } = req.body
 
-    // Monta parts — PDF inline + texto do prompt
     const parts = []
 
     if (pdf_base64) {
@@ -41,18 +40,38 @@ export default async function handler(req, res) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ role: 'user', parts }],
-          generationConfig: { maxOutputTokens: max_tokens || 1500, temperature: 0.1 },
+          generationConfig: {
+            maxOutputTokens: max_tokens || 2000,
+            temperature: 0.1,
+            // Desativa thinking para respostas mais rápidas e simples
+            thinkingConfig: { thinkingBudget: 0 },
+          },
         }),
       }
     )
 
-    const data = await response.json()
+    // Lê resposta como texto primeiro para evitar erro de JSON inválido
+    const rawText = await response.text()
+
+    let data
+    try {
+      data = JSON.parse(rawText)
+    } catch (e) {
+      return res.status(500).json({ error: 'Resposta inválida da API Gemini: ' + rawText.slice(0, 200) })
+    }
 
     if (data.error) {
       return res.status(400).json({ error: data.error.message || JSON.stringify(data.error) })
     }
 
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    // Gemini 2.5 pode retornar múltiplos parts (thinking + resposta)
+    // Pega só as parts de texto que não são thinking
+    const parts_out = data.candidates?.[0]?.content?.parts || []
+    const text = parts_out
+      .filter(p => p.text && !p.thought)
+      .map(p => p.text)
+      .join('')
+
     return res.status(200).json({ content: [{ type: 'text', text }] })
 
   } catch (err) {
