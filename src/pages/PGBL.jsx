@@ -256,39 +256,40 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
       for (var i = 0; i < irFile.length; i++) {
         setLoadingMsg('Lendo declaração IR...')
         const textoIR = await extractPdfText(irFile[i])
-        // DIRPF: rendimentos ficam no início — pega os primeiros 4000 chars
-        textoCompleto += '\n\n=== DECLARAÇÃO DE IR ===\n' + textoIR.slice(0, 4000)
+        // truncarTexto pega início + fim — garante capturar dados espalhados pelo documento
+        textoCompleto += '\n\n=== DECLARAÇÃO DE IR ===\n' + truncarTexto(textoIR, 4000)
       }
       for (var j = 0; j < holerites.length; j++) {
         setLoadingMsg('Lendo holerite ' + (j + 1) + ' de ' + holerites.length + '...')
         const textoHol = await extractPdfText(holerites[j])
-        textoCompleto += '\n\n=== HOLERITE ' + (j + 1) + ' ===\n' + textoHol.slice(0, 2000)
+        textoCompleto += '\n\n=== HOLERITE ' + (j + 1) + ' ===\n' + truncarTexto(textoHol, 2000)
       }
-      if (textoCompleto.length > 5500) textoCompleto = textoCompleto.slice(0, 5500)
+      if (textoCompleto.length > 5500) textoCompleto = truncarTexto(textoCompleto, 5500)
 
-      // Debug: verifica se extraiu texto
+      // Salva texto para debug e verifica se extraiu algo
+      setTextoDebug(textoCompleto)
       const textoLimpo = textoCompleto.replace(/\s/g, '')
-      if (textoLimpo.length < 50) {
-        throw new Error('Não foi possível extrair texto do PDF. O arquivo pode ser uma imagem escaneada. Tente usar o modo "Preencher manualmente".')
+      if (textoLimpo.length < 30) {
+        setLoading(false)
+        setLoadingMsg('')
+        setError('Não foi possível extrair texto do PDF. Clique em "Ver texto extraído" abaixo para confirmar.')
+        return
       }
-      // Guarda amostra do texto extraído para debug
-      console.log('[PGBL] Texto extraído (' + textoCompleto.length + ' chars):', textoCompleto.slice(0, 500))
 
       setLoadingMsg('Analisando com IA...')
 
-      const prompt = `Você é um especialista em documentos fiscais brasileiros. Analise o texto extraído de um documento (pode ser declaração DIRPF da Receita Federal, holerite ou informe de rendimentos) e extraia os dados financeiros.
+      const prompt = `Especialista tributário BR. Analise os documentos abaixo (declaração IRPF, holerite ou informe de rendimentos) e extraia dados financeiros. O texto foi extraído de PDF e pode estar desformatado — procure pelos valores mesmo fora de ordem.
 
-INSTRUÇÕES IMPORTANTES:
-- O texto pode estar desformatado pois foi extraído de PDF — procure por números e palavras-chave mesmo que fora de ordem
-- Na declaração IRPF, procure por: "Rendimentos Tributáveis", "Rendimentos Isentos", "Imposto Retido", "INSS", valores em formato "R$ XX.XXX,XX" ou apenas "XX.XXX,XX"
-- Em holerites, procure por: salário base, INSS descontado, IRRF descontado, verbas/rubricas
-- Se não encontrar um valor específico, use 0 — NUNCA retorne texto onde deveria haver número
-- rendaMensalTributavel = rendaAnualTributavel dividido pelos meses
+Tributáveis: salário, 13º, férias+1/3, pró-labore, bônus folha, aluguéis PF, JCP, pensão alimentícia.
+Não tributáveis: dividendos, PLR, FGTS, indenização trabalhista, seguro-desemprego.
+Descontos: INSS, IRRF, previdência corporativa (Prev, PGBL corp, Fundo Pensão).
+Se múltiplos documentos, some os valores anuais.
+Se não encontrar um valor, use 0.
 
-RETORNE APENAS ESTE JSON SEM NENHUM TEXTO ANTES OU DEPOIS:
-{"rendaMensalTributavel":0,"rendaAnualTributavel":0,"rendaAnualNaoTributavel":0,"inss":0,"irrf":0,"meses":12,"previdenciaCorpMensal":0,"previdenciaCorpAnual":0,"nomePrevidenciaCorp":null,"fontes":[{"descricao":"nome da fonte de renda","valor":0,"tributavel":true,"categoria":"trabalho","observacao":null}],"descontos":[{"descricao":"nome do desconto","valor":0,"tipo":"inss"}],"observacoes":"resumo do que foi encontrado"}
+Responda SOMENTE JSON puro sem texto antes ou depois:
+{"rendaMensalTributavel":0,"rendaAnualTributavel":0,"rendaAnualNaoTributavel":0,"inss":0,"irrf":0,"meses":12,"previdenciaCorpMensal":0,"previdenciaCorpAnual":0,"nomePrevidenciaCorp":null,"fontes":[{"descricao":"string","valor":0,"tributavel":true,"categoria":"trabalho","observacao":null}],"descontos":[{"descricao":"string","valor":0,"tipo":"inss"}],"observacoes":"string"}
 
-TEXTO DO DOCUMENTO:
+DOCUMENTOS:
 ${textoCompleto}`
 
       const raw = await callClaude([{ role: 'user', content: prompt }], 1200)
@@ -481,8 +482,8 @@ ${textoCompleto}`
             </button>
           )}
 
-          {/* Debug: texto extraído */}
-          {textoDebug && !loading && (
+          {/* Debug: texto extraído — aparece sempre após upload */}
+          {(textoDebug || error) && !loading && (
             <div style={{ marginTop: '12px' }}>
               <button onClick={function() { setShowDebug(!showDebug) }}
                 style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-dim)', fontSize: '11px', padding: '6px 12px', cursor: 'pointer', width: '100%' }}>
