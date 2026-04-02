@@ -271,24 +271,56 @@ export async function extractPdfText(file) {
   })
 }
 
-// ── API call (via proxy) ──────────────────────────────────────────────────────
+// ── API call via proxy (Gemini) ───────────────────────────────────────────────
 export async function callClaude(messages, maxTokens) {
   const response = await fetch('/api/analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      max_tokens: maxTokens || 2000,
       messages: messages,
+      max_tokens: maxTokens || 1500,
     }),
   })
   if (!response.ok) {
     const txt = await response.text()
-    throw new Error('API error ' + response.status + ': ' + txt.slice(0, 200))
+    throw new Error('API error ' + response.status + ': ' + txt.slice(0, 300))
   }
   const data = await response.json()
   if (data.error) throw new Error(data.error.message || JSON.stringify(data.error))
   return (data.content || []).map(function(b) { return b.text || '' }).join('')
+}
+
+// ── Envia PDF diretamente para o Gemini (sem extração prévia) ─────────────────
+export async function callGeminiPDF(file, prompt, maxTokens) {
+  return new Promise(function(resolve, reject) {
+    const reader = new FileReader()
+    reader.onload = async function(e) {
+      try {
+        const base64 = e.target.result.split(',')[1]
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pdf_base64: base64,
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: maxTokens || 1500,
+          }),
+        })
+        if (!response.ok) {
+          const txt = await response.text()
+          throw new Error('API error ' + response.status + ': ' + txt.slice(0, 300))
+        }
+        const data = await response.json()
+        if (data.error) throw new Error(data.error.message || JSON.stringify(data.error))
+        const text = (data.content || []).map(function(b) { return b.text || '' }).join('')
+        resolve(text)
+      } catch (err) {
+        reject(err)
+      }
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 }
 
 // ── ID generator ─────────────────────────────────────────────────────────────
