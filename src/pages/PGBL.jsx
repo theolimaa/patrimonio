@@ -322,8 +322,8 @@ ${textoCompleto}`
         <Card>
           <CardTitle>Renda Bruta Tributável</CardTitle>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-            <MoneyField label="Renda mensal" value={rendaMensal} onChange={handleRendaMensalChange} hint="Salário, pró-labore e demais tributáveis" />
-            <MoneyField label="Renda anual" value={rendaAnual} onChange={handleRendaAnualChange} hint="Calculado automaticamente ou edite aqui" />
+            <MoneyField label="Renda mensal compensável" value={rendaMensal} onChange={handleRendaMensalChange} hint="Salário mensal excluindo 13º, férias e PLR — igual ao campo do Hub XP" />
+<MoneyField label="Receita Bruta Tributável Compensável (anual)" value={rendaAnual} onChange={handleRendaAnualChange} hint="Use o valor do mapeamento Hub XP — já exclui 13º, férias e PLR automaticamente" />
           </div>
 
           {/* Rendimentos com tributação exclusiva */}
