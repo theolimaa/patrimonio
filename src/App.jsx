@@ -36,6 +36,7 @@ export default function App() {
     contribuiINSS: false,
     inssManual: '',
     inssOverride: false,
+    desconta13: false,
     rendExclusivos: '',
     holerites: [],
     irFile: [],
