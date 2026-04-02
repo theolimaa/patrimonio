@@ -86,26 +86,33 @@ export function calcIR(rendaBaseMensal) {
 }
 
 // ── PGBL — lógica XP: base = bruta - INSS ────────────────────────────────────
-export function calcPGBL(rendaBrutaAnual, aliquotaMarginal, inssAnual) {
+export function calcPGBL(rendaBrutaAnual, aliquotaMarginal, inssAnual, rendExclusivosAnual) {
   const inss = inssAnual || 0
-  // Limite 12% é sobre a RENDA BRUTA (Receita Federal) — INSS não reduz a base dos 12%
-  const pgblIdeal = rendaBrutaAnual * 0.12
+  const exclusivos = rendExclusivosAnual || 0
+  // Base compensável = Renda Bruta - Rendimentos com tributação exclusiva (13º, PLR, etc.)
+  // O INSS NÃO reduz a base dos 12% — ele e o PGBL são deduções independentes do IR
+  const baseCompensavel = Math.max(0, rendaBrutaAnual - exclusivos)
+  const pgblIdeal = baseCompensavel * 0.12
   const economiaAnual = pgblIdeal * aliquotaMarginal
   const economiaMensal = economiaAnual / 12
-  // baseLiquida = bruta - INSS (usada só para exibição e cálculo de IR)
+  // baseLiquida = bruta - INSS (usada para cálculo de IR)
   const baseLiquida = Math.max(0, rendaBrutaAnual - inss)
-  return { pgblIdeal, economiaAnual, economiaMensal, baseLiquida }
+  return { pgblIdeal, economiaAnual, economiaMensal, baseLiquida, baseCompensavel }
 }
 
 // Comparativo IR sem/com PGBL (lógica Receita Federal)
 // Base IR = Renda Bruta − INSS − PGBL  (deduções independentes)
-export function calcComparativoIR(rendaBrutaAnual, inssAnual, pgblAporte) {
+// Nota: rendimentos exclusivos (13º, PLR) já foram excluídos ANTES da renda bruta informada
+export function calcComparativoIR(rendaBrutaAnual, inssAnual, pgblAporte, rendExclusivosAnual) {
   const inss = inssAnual || 0
   const pgbl = pgblAporte || 0
-  // Sem PGBL: deduz só INSS
-  const baseSemPGBL = Math.max(0, rendaBrutaAnual - inss)
+  const exclusivos = rendExclusivosAnual || 0
+  // Renda compensável = exclui tributação exclusiva
+  const rendaCompensavel = Math.max(0, rendaBrutaAnual - exclusivos)
+  // Sem PGBL: deduz só INSS da renda compensável
+  const baseSemPGBL = Math.max(0, rendaCompensavel - inss)
   // Com PGBL: deduz INSS + PGBL
-  const baseComPGBL = Math.max(0, rendaBrutaAnual - inss - pgbl)
+  const baseComPGBL = Math.max(0, rendaCompensavel - inss - pgbl)
 
   function irAnual(baseAnual) {
     const baseMensal = baseAnual / 12
