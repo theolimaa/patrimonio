@@ -80,14 +80,15 @@ function upd(setFormState, key) {
 }
 
 export default function Sucessao({ formState, setFormState, patrimonioFinanceiroShared, onDataChange }) {
-  const { regimeCasamento, imoveis, veiculos, pfManual, coberturaJaContratada, valorPrevidencia, observacaoSucessao } = formState
+  const { estadoCivil, regimeCasamento, imoveis, veiculos, pfManual, coberturaJaContratada, valorPrevidencia, observacaoSucessao } = formState
 
+  const isCasado = estadoCivil === 'casado'
   const pfShared = centsToNum(patrimonioFinanceiroShared || '')
   const patrimonioFinanceiro = pfShared > 0 ? pfShared : centsToNum(pfManual)
   const previdenciaNum = centsToNum(valorPrevidencia)
   const coberturaNum = centsToNum(coberturaJaContratada)
   const patrimonioFinanceiroInventariavel = Math.max(0, patrimonioFinanceiro - previdenciaNum)
-  const calcs = calcPatrimonioInventariavel(imoveis, patrimonioFinanceiroInventariavel, veiculos, regimeCasamento)
+  const calcs = calcPatrimonioInventariavel(imoveis, patrimonioFinanceiroInventariavel, veiculos, regimeCasamento, estadoCivil)
   const custos = calcInventario(calcs.totalInventariavel)
   const totalCustos = custos.reduce(function(acc, c) { return acc + c.valor }, 0)
   const patrimonioLiquido = calcs.totalInventariavel - totalCustos
@@ -98,10 +99,11 @@ export default function Sucessao({ formState, setFormState, patrimonioFinanceiro
     if (hasData) {
       onDataChange({
         imoveis, veiculos,
+        estadoCivil,
         patrimonioFinanceiro,
         previdenciaNum,
         coberturaNum,
-        regimeCasamento,
+        regimeCasamento: isCasado ? regimeCasamento : null,
         observacaoSucessao: observacaoSucessao || '',
         totais: {
           totalBruto: calcs.totalBruto + previdenciaNum,
@@ -112,7 +114,7 @@ export default function Sucessao({ formState, setFormState, patrimonioFinanceiro
         },
       })
     }
-  }, [imoveis, veiculos, patrimonioFinanceiro, regimeCasamento, previdenciaNum, coberturaNum, observacaoSucessao])
+  }, [imoveis, veiculos, patrimonioFinanceiro, estadoCivil, regimeCasamento, previdenciaNum, coberturaNum, observacaoSucessao])
 
   const pieData = custos.map(function(c) { return { name: c.nome, value: Math.round(c.valor), pct: c.pct, fill: c.cor } })
 
@@ -128,16 +130,45 @@ export default function Sucessao({ formState, setFormState, patrimonioFinanceiro
       <SectionTitle />
 
       <Card>
-        <CardTitle>Regime Matrimonial</CardTitle>
-        <div style={{ maxWidth: '340px' }}>
-          <SelectField label="Regime de bens" value={regimeCasamento} onChange={upd(setFormState, 'regimeCasamento')}
-            options={[{ v: 'comunhao_parcial', l: 'Comunhão Parcial de Bens' }, { v: 'comunhao_universal', l: 'Comunhão Universal de Bens' }, { v: 'separacao_total', l: 'Separação Total de Bens' }]} />
+        <CardTitle>Estado Civil</CardTitle>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '16px' }}>
+          {[
+            { v: 'casado', l: '💍 Casado(a)' },
+            { v: 'solteiro', l: '🙂 Solteiro(a)' },
+            { v: 'divorciado', l: '📄 Divorciado(a)' },
+            { v: 'viuvo', l: '🕊️ Viúvo(a)' },
+          ].map(function(opt) {
+            const active = estadoCivil === opt.v
+            return (
+              <button key={opt.v} onClick={function() { upd(setFormState, 'estadoCivil')(opt.v) }}
+                style={{ padding: '12px 8px', border: active ? '2px solid var(--gold)' : '1.5px solid var(--border)', borderRadius: '10px', background: active ? 'var(--gold-dim)' : 'var(--bg-input)', color: active ? 'var(--gold-light)' : 'var(--text-muted)', fontSize: '13px', fontWeight: active ? 700 : 400, cursor: 'pointer', fontFamily: 'var(--font-display)', transition: 'all 0.2s' }}>
+                {opt.l}
+              </button>
+            )
+          })}
         </div>
-        <div style={{ marginTop: '12px', padding: '12px 14px', background: 'rgba(74,159,212,0.08)', border: '1px solid rgba(74,159,212,0.2)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.7 }}>
-          {regimeCasamento === 'comunhao_parcial' && '📌 Comunhão parcial: bens adquiridos antes do casamento são 100% individuais. Bens após: 50% de cada cônjuge — apenas a parte do falecido entra no inventário.'}
-          {regimeCasamento === 'comunhao_universal' && '📌 Comunhão universal: todo patrimônio é compartilhado 50/50. Apenas 50% do total entra no inventário.'}
-          {regimeCasamento === 'separacao_total' && '📌 Separação total: patrimônio totalmente individual. 100% dos bens do falecido entram no inventário.'}
-        </div>
+
+        {/* Regime de bens — só aparece se casado */}
+        {isCasado && (
+          <div className="animate-in">
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '18px', marginTop: '4px' }}>
+              <SelectField label="Regime de bens" value={regimeCasamento} onChange={upd(setFormState, 'regimeCasamento')}
+                options={[{ v: 'comunhao_parcial', l: 'Comunhão Parcial de Bens' }, { v: 'comunhao_universal', l: 'Comunhão Universal de Bens' }, { v: 'separacao_total', l: 'Separação Total de Bens' }]} />
+              <div style={{ marginTop: '12px', padding: '12px 14px', background: 'rgba(74,159,212,0.08)', border: '1px solid rgba(74,159,212,0.2)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.7 }}>
+                {regimeCasamento === 'comunhao_parcial' && '📌 Comunhão parcial: bens adquiridos antes do casamento são 100% individuais. Bens após: 50% de cada cônjuge — apenas a parte do falecido entra no inventário.'}
+                {regimeCasamento === 'comunhao_universal' && '📌 Comunhão universal: todo patrimônio é compartilhado 50/50. Apenas 50% do total entra no inventário.'}
+                {regimeCasamento === 'separacao_total' && '📌 Separação total: patrimônio totalmente individual. 100% dos bens do falecido entram no inventário.'}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Não casado: explica que 100% vai ao inventário */}
+        {!isCasado && (
+          <div style={{ padding: '12px 14px', background: 'rgba(74,159,212,0.08)', border: '1px solid rgba(74,159,212,0.2)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.7 }}>
+            📌 {estadoCivil === 'solteiro' ? 'Solteiro(a)' : estadoCivil === 'divorciado' ? 'Divorciado(a)' : 'Viúvo(a)'}: sem cônjuge, <strong style={{ color: 'var(--text)' }}>100% do patrimônio entra no inventário</strong> e é distribuído aos herdeiros conforme a lei ou testamento.
+          </div>
+        )}
       </Card>
 
       <Card>
@@ -149,11 +180,11 @@ export default function Sucessao({ formState, setFormState, patrimonioFinanceiro
                 <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', fontFamily: 'var(--font-display)' }}>Imóvel {idx + 1}</span>
                 {imoveis.length > 1 && <RemoveBtn onClick={function() { removeImovel(im.id) }} />}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: regimeCasamento === 'comunhao_parcial' ? '1fr 1fr 1fr' : '1fr 1fr', gap: '12px', alignItems: 'end' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isCasado && regimeCasamento === 'comunhao_parcial' ? '1fr 1fr 1fr' : '1fr 1fr', gap: '12px', alignItems: 'end' }}>
                 <SelectField label="Tipo" value={im.tipo} onChange={function(v) { updateImovel(im.id, 'tipo', v) }}
                   options={[{ v: 'residencial', l: 'Residencial' }, { v: 'comercial', l: 'Comercial' }, { v: 'rural', l: 'Rural' }, { v: 'terreno', l: 'Terreno' }]} />
                 <MoneyField label="Valor de mercado" value={im.valor} onChange={function(v) { updateImovel(im.id, 'valor', v) }} />
-                {regimeCasamento === 'comunhao_parcial' && (
+                {isCasado && regimeCasamento === 'comunhao_parcial' && (
                   <div>
                     <Label>Aquisição</Label>
                     <select value={im.antesCasamento ? 'antes' : 'depois'} onChange={function(e) { updateImovel(im.id, 'antesCasamento', e.target.value === 'antes') }}
@@ -164,7 +195,7 @@ export default function Sucessao({ formState, setFormState, patrimonioFinanceiro
                   </div>
                 )}
               </div>
-              {regimeCasamento === 'comunhao_parcial' && (
+              {isCasado && regimeCasamento === 'comunhao_parcial' && (
                 <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-dim)', fontStyle: 'italic' }}>
                   {im.antesCasamento ? '→ 100% do valor entra no inventário (bem individual)' : '→ 50% do valor entra no inventário (meação do cônjuge)'}
                 </div>
@@ -205,11 +236,11 @@ export default function Sucessao({ formState, setFormState, patrimonioFinanceiro
                 <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', fontFamily: 'var(--font-display)' }}>Veículo {idx + 1}</span>
                 {veiculos.length > 1 && <RemoveBtn onClick={function() { removeVeiculo(ve.id) }} />}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: regimeCasamento === 'comunhao_parcial' ? '1fr 1fr 1fr' : '1fr 1fr', gap: '12px', alignItems: 'end' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isCasado && regimeCasamento === 'comunhao_parcial' ? '1fr 1fr 1fr' : '1fr 1fr', gap: '12px', alignItems: 'end' }}>
                 <SelectField label="Tipo" value={ve.tipo} onChange={function(v) { updateVeiculo(ve.id, 'tipo', v) }}
                   options={[{ v: 'carro', l: '🚗 Carro' }, { v: 'moto', l: '🏍️ Moto' }, { v: 'caminhao', l: '🚛 Caminhão' }, { v: 'barco', l: '⛵ Barco' }]} />
                 <MoneyField label="Valor de mercado" value={ve.valor} onChange={function(v) { updateVeiculo(ve.id, 'valor', v) }} />
-                {regimeCasamento === 'comunhao_parcial' && (
+                {isCasado && regimeCasamento === 'comunhao_parcial' && (
                   <div>
                     <Label>Aquisição</Label>
                     <select value={ve.antesCasamento ? 'antes' : 'depois'} onChange={function(e) { updateVeiculo(ve.id, 'antesCasamento', e.target.value === 'antes') }}
@@ -222,7 +253,7 @@ export default function Sucessao({ formState, setFormState, patrimonioFinanceiro
               </div>
               {val > 0 && (
                 <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-dim)', fontStyle: 'italic', display: 'flex', justifyContent: 'space-between' }}>
-                  <span>{regimeCasamento === 'comunhao_parcial' ? (ve.antesCasamento ? '→ 100% entra no inventário (bem individual)' : '→ 50% entra no inventário (meação do cônjuge)') : regimeCasamento === 'comunhao_universal' ? '→ 50% entra no inventário' : '→ 100% entra no inventário'}</span>
+                  <span>{!isCasado ? '→ 100% entra no inventário' : regimeCasamento === 'comunhao_parcial' ? (ve.antesCasamento ? '→ 100% entra no inventário (bem individual)' : '→ 50% entra no inventário (meação do cônjuge)') : regimeCasamento === 'comunhao_universal' ? '→ 50% entra no inventário' : '→ 100% entra no inventário'}</span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-muted)' }}>Inventariável: {fmtBRL(inventariavel)}</span>
                 </div>
               )}
