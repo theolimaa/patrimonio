@@ -23,6 +23,10 @@ function Card({ children, style }) {
   )
 }
 
+function CardTitle({ children }) {
+  return <div style={{ fontFamily: 'var(--font-display)', fontSize: '16px', color: 'var(--text)', marginBottom: '18px', fontWeight: 700 }}>{children}</div>
+}
+
 function Label({ children }) {
   return <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '7px', marginTop: '18px', fontWeight: 600, fontFamily: 'var(--font-display)' }}>{children}</div>
 }
@@ -72,7 +76,7 @@ function set(setFormState, key) {
 }
 
 export default function Riscos({ formState, setFormState, clientInfo, onClientInfoChange, onDataChange }) {
-  const { patrimonioAtual, patrimonioAposentadoria, coberturaContratada } = formState
+  const { patrimonioAtual, patrimonioAposentadoria, coberturaContratada, observacaoRiscos } = formState
 
   const atual = centsToNum(patrimonioAtual)
   const aposentadoria = centsToNum(patrimonioAposentadoria)
@@ -89,9 +93,10 @@ export default function Riscos({ formState, setFormState, clientInfo, onClientIn
         coberturaNecessaria: coberturaNecessaria,
         coberturaContratada: coberturaContratadaNum,
         gapDescoberto: gapDescoberto,
+        observacaoRiscos: observacaoRiscos || '',
       })
     }
-  }, [atual, aposentadoria, coberturaContratadaNum])
+  }, [atual, aposentadoria, coberturaContratadaNum, observacaoRiscos])
 
   return (
     <div>
@@ -256,6 +261,33 @@ export default function Riscos({ formState, setFormState, clientInfo, onClientIn
           </div>
         </div>
       )}
+
+      {/* Observações do planejamento de riscos */}
+      <Card>
+        <CardTitle>📝 Observações — Gestão de Riscos</CardTitle>
+        <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.7 }}>
+          Adicione estratégias, recomendações ou comentários sobre a gestão de riscos do cliente. Este texto será incluído no relatório PDF.
+        </div>
+        <textarea
+          value={observacaoRiscos || ''}
+          onChange={function(e) { setFormState(function(prev) { return { ...prev, observacaoRiscos: e.target.value } }) }}
+          placeholder="Ex: Cliente possui gap descoberto de invalidez. Recomenda-se contratação de seguro de vida com cobertura por invalidez permanente no valor de R$ X. Avaliar produtos da XP Seguros..."
+          rows={5}
+          style={{
+            width: '100%', background: 'var(--bg-input)', border: '1.5px solid var(--border)',
+            borderRadius: '10px', padding: '14px 16px', color: 'var(--text)', fontSize: '14px',
+            fontFamily: 'var(--font-body)', lineHeight: 1.7, outline: 'none', resize: 'vertical',
+            transition: 'border-color 0.2s', boxSizing: 'border-box',
+          }}
+          onFocus={function(e) { e.target.style.borderColor = 'var(--gold)' }}
+          onBlur={function(e) { e.target.style.borderColor = 'var(--border)' }}
+        />
+        {observacaoRiscos && (
+          <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-dim)', textAlign: 'right' }}>
+            {observacaoRiscos.length} caracteres · aparecerá no PDF
+          </div>
+        )}
+      </Card>
     </div>
   )
 }
