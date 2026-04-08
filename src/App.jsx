@@ -15,6 +15,7 @@ export default function App() {
     patrimonioAtual: '',
     patrimonioAposentadoria: '',
     coberturaContratada: '',
+    observacaoRiscos: '',
   })
 
   // ── Sucessao state ──────────────────────────────────────────────────────────
@@ -25,6 +26,7 @@ export default function App() {
     pfManual: '',
     coberturaJaContratada: '',
     valorPrevidencia: '',
+    observacaoSucessao: '',
   })
 
   // ── PGBL state ──────────────────────────────────────────────────────────────
