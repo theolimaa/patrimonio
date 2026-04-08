@@ -80,7 +80,7 @@ function upd(setFormState, key) {
 }
 
 export default function Sucessao({ formState, setFormState, patrimonioFinanceiroShared, onDataChange }) {
-  const { regimeCasamento, imoveis, veiculos, pfManual, coberturaJaContratada, valorPrevidencia } = formState
+  const { regimeCasamento, imoveis, veiculos, pfManual, coberturaJaContratada, valorPrevidencia, observacaoSucessao } = formState
 
   const pfShared = centsToNum(patrimonioFinanceiroShared || '')
   const patrimonioFinanceiro = pfShared > 0 ? pfShared : centsToNum(pfManual)
@@ -102,6 +102,7 @@ export default function Sucessao({ formState, setFormState, patrimonioFinanceiro
         previdenciaNum,
         coberturaNum,
         regimeCasamento,
+        observacaoSucessao: observacaoSucessao || '',
         totais: {
           totalBruto: calcs.totalBruto + previdenciaNum,
           totalInventariavel: calcs.totalInventariavel,
@@ -111,7 +112,7 @@ export default function Sucessao({ formState, setFormState, patrimonioFinanceiro
         },
       })
     }
-  }, [imoveis, veiculos, patrimonioFinanceiro, regimeCasamento, previdenciaNum, coberturaNum])
+  }, [imoveis, veiculos, patrimonioFinanceiro, regimeCasamento, previdenciaNum, coberturaNum, observacaoSucessao])
 
   const pieData = custos.map(function(c) { return { name: c.nome, value: Math.round(c.valor), pct: c.pct, fill: c.cor } })
 
@@ -349,6 +350,33 @@ export default function Sucessao({ formState, setFormState, patrimonioFinanceiro
           </Card>
         </div>
       )}
+
+      {/* Observações do planejamento sucessório */}
+      <Card>
+        <CardTitle>📝 Observações — Planejamento Sucessório</CardTitle>
+        <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.7 }}>
+          Adicione estratégias, recomendações ou comentários sobre o planejamento sucessório do cliente. Este texto será incluído no relatório PDF.
+        </div>
+        <textarea
+          value={observacaoSucessao || ''}
+          onChange={function(e) { setFormState(function(prev) { return { ...prev, observacaoSucessao: e.target.value } }) }}
+          placeholder="Ex: Recomenda-se avaliar a constituição de uma holding familiar para otimizar a transferência de patrimônio imobiliário, reduzindo custos de inventário e facilitando a gestão dos bens entre herdeiros..."
+          rows={5}
+          style={{
+            width: '100%', background: 'var(--bg-input)', border: '1.5px solid var(--border)',
+            borderRadius: '10px', padding: '14px 16px', color: 'var(--text)', fontSize: '14px',
+            fontFamily: 'var(--font-body)', lineHeight: 1.7, outline: 'none', resize: 'vertical',
+            transition: 'border-color 0.2s', boxSizing: 'border-box',
+          }}
+          onFocus={function(e) { e.target.style.borderColor = 'var(--gold)' }}
+          onBlur={function(e) { e.target.style.borderColor = 'var(--border)' }}
+        />
+        {observacaoSucessao && (
+          <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-dim)', textAlign: 'right' }}>
+            {observacaoSucessao.length} caracteres · aparecerá no PDF
+          </div>
+        )}
+      </Card>
     </div>
   )
 }
