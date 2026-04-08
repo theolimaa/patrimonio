@@ -201,6 +201,7 @@ export function generatePDF(appData, sections, clientInfo) {
     <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100, ((riscos.patrimonioAtual || 0) / riscos.patrimonioAposentadoria) * 100).toFixed(1)}%"></div></div>
   </div>` : ''}
   ${(riscos.gapDescoberto || 0) > 0 ? `<div class="insight">${(riscos.coberturaContratada || 0) > 0 ? 'Considerando a cobertura já contratada de <strong>' + fmtBRL(riscos.coberturaContratada) + '</strong>, ainda há um gap de <strong>' + fmtBRL(riscos.gapDescoberto) + '</strong> a ser coberto com seguro adicional.' : 'Recomenda-se uma cobertura de <strong>' + fmtBRL(riscos.coberturaNecessaria || 0) + '</strong>, correspondente ao gap entre o patrimônio atual e a meta de aposentadoria.'}</div>` : ''}
+  ${riscos.observacaoRiscos ? `<div class="obs-box"><strong>Observações do Assessor:</strong><br/><br/>${riscos.observacaoRiscos.replace(/\n/g, '<br/>')}</div>` : ''}
   ` : '<div class="empty-note">Nenhum dado preenchido para este módulo.</div>'}
 </div>
 </div>
@@ -243,6 +244,7 @@ export function generatePDF(appData, sections, clientInfo) {
     <tr><td><span class="dot dot-green"></span>Custas Cartorárias</td><td class="right">3,0%</td><td class="right mono">${fmtBRL((sucessao.totais.totalInventariavel || 0) * 0.03)}</td></tr>
     <tr class="total-row"><td class="bold">Total</td><td class="right bold">15,0%</td><td class="right mono bold">${fmtBRL(sucessao.totais.totalCustos || 0)}</td></tr>
   </tbody></table></div>
+  ${sucessao.observacaoSucessao ? `<div class="obs-box"><strong>Observações do Assessor:</strong><br/><br/>${sucessao.observacaoSucessao.replace(/\n/g, '<br/>')}</div>` : ''}
   ` : '<div class="empty-note">Nenhum dado preenchido para este módulo.</div>'}
 </div>
 </div>
