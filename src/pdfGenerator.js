@@ -67,7 +67,7 @@ export function generatePDF(appData, sections, clientInfo) {
   .section-tag{font-family:'Montserrat',sans-serif;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:#c9a84c;font-weight:700;margin-bottom:5px;}
   .section-title{font-family:'Montserrat',sans-serif;font-size:17px;font-weight:800;color:#1a2744;margin-bottom:8px;}
   .section-desc{font-size:12px;color:#5a7a9a;line-height:1.6;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #e8edf5;}
-  .obs-box{background:#fffbf0;border:1px solid #e8d070;border-radius:9px;padding:14px 16px;margin:14px 0;font-size:12px;color:#4a3a10;line-height:1.8;}
+  .obs-box{background:#fffbf0;border:1px solid #e8d070;border-radius:9px;padding:14px 16px;margin:14px 0;font-size:12px;color:#4a3a10;line-height:1.8;page-break-inside:avoid;break-inside:avoid;}
   .nb{page-break-inside:avoid;break-inside:avoid;}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;}
