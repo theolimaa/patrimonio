@@ -13,12 +13,30 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { messages, max_tokens, pdf_base64 } = req.body
+    const { messages, max_tokens, pdf_base64, mime_type } = req.body
 
     const parts = []
 
     if (pdf_base64) {
-      parts.push({ inline_data: { mime_type: 'application/pdf', data: pdf_base64 } })
+      // Usa o mime_type enviado pelo cliente, ou detecta pelo header base64
+      let detectedMime = mime_type || 'application/pdf'
+
+      // Detecção automática pelo início do base64
+      const header = pdf_base64.slice(0, 16)
+      const decoded = Buffer.from(header, 'base64').toString('hex')
+      if (decoded.startsWith('ffd8ff')) {
+        detectedMime = 'image/jpeg'
+      } else if (decoded.startsWith('89504e47')) {
+        detectedMime = 'image/png'
+      } else if (decoded.startsWith('25504446')) {
+        detectedMime = 'application/pdf'
+      } else if (decoded.startsWith('47494638')) {
+        detectedMime = 'image/gif'
+      } else if (decoded.startsWith('52494646') && decoded.slice(16, 24) === '57454250') {
+        detectedMime = 'image/webp'
+      }
+
+      parts.push({ inline_data: { mime_type: detectedMime, data: pdf_base64 } })
     }
 
     if (messages && messages.length > 0) {
@@ -43,14 +61,12 @@ export default async function handler(req, res) {
           generationConfig: {
             maxOutputTokens: max_tokens || 2000,
             temperature: 0.1,
-            // Desativa thinking para respostas mais rápidas e simples
             thinkingConfig: { thinkingBudget: 0 },
           },
         }),
       }
     )
 
-    // Lê resposta como texto primeiro para evitar erro de JSON inválido
     const rawText = await response.text()
 
     let data
@@ -64,8 +80,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: data.error.message || JSON.stringify(data.error) })
     }
 
-    // Gemini 2.5 pode retornar múltiplos parts (thinking + resposta)
-    // Pega só as parts de texto que não são thinking
     const parts_out = data.candidates?.[0]?.content?.parts || []
     const text = parts_out
       .filter(p => p.text && !p.thought)
