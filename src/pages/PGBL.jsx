@@ -107,12 +107,12 @@ function DropZone({ files, onAdd, onRemove, label, single }) {
         onDrop={function(e) { e.preventDefault(); setDragging(false); handleFiles(e.dataTransfer.files) }}
         onClick={function() { inputRef.current.click() }}
         style={{ border: '2px dashed ' + (dragging ? 'var(--gold)' : files.length ? 'rgba(26,153,85,0.5)' : 'var(--border-strong)'), borderRadius: '12px', padding: '28px', textAlign: 'center', cursor: 'pointer', background: dragging ? 'var(--gold-dim)' : files.length ? 'rgba(26,153,85,0.05)' : 'var(--bg-input)', transition: 'all 0.2s' }}>
-        <input ref={inputRef} type="file" accept="application/pdf,image/*" multiple={!single} style={{ display: 'none' }} onChange={function(e) { handleFiles(e.target.files) }} />
+        <input ref={inputRef} type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/*" multiple={!single} style={{ display: 'none' }} onChange={function(e) { handleFiles(e.target.files) }} />
         <div style={{ fontSize: '32px', marginBottom: '10px' }}>{files.length ? '✅' : '📄'}</div>
         <div style={{ fontSize: '13px', fontWeight: 700, color: files.length ? 'var(--green)' : 'var(--text)', marginBottom: '4px', fontFamily: 'var(--font-display)' }}>
           {files.length ? (single ? files[0].name : files.length + ' arquivo' + (files.length > 1 ? 's' : '') + ' selecionado' + (files.length > 1 ? 's' : '')) : label}
         </div>
-        <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>PDF · texto extraído automaticamente</div>
+        <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>PDF ou imagem (JPG, PNG)</div>
       </div>
       {files.length > 0 && !single && (
         <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
