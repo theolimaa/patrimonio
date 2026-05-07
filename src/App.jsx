@@ -20,6 +20,7 @@ export default function App() {
 
   // ── Sucessao state ──────────────────────────────────────────────────────────
   const [sucessaoState, setSucessaoState] = useState({
+    estadoCivil: 'casado',
     regimeCasamento: 'comunhao_parcial',
     imoveis: [{ id: genId(), tipo: 'residencial', valor: '', antesCasamento: false }],
     veiculos: [{ id: genId(), tipo: 'carro', valor: '' }],
