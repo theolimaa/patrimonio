@@ -302,12 +302,16 @@ export async function callGeminiPDF(file, prompt, maxTokens) {
     const reader = new FileReader()
     reader.onload = async function(e) {
       try {
-        const base64 = e.target.result.split(',')[1]
+        const dataUrl = e.target.result
+        const base64 = dataUrl.split(',')[1]
+        // Envia o mime_type real do arquivo (image/jpeg, image/png, application/pdf, etc.)
+        const mimeType = file.type || 'application/pdf'
         const response = await fetch('/api/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             pdf_base64: base64,
+            mime_type: mimeType,
             messages: [{ role: 'user', content: prompt }],
             max_tokens: maxTokens || 1500,
           }),
