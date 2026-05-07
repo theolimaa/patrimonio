@@ -165,8 +165,12 @@ export function calcInventario(patrimonioInventariavel) {
   })
 }
 
-export function calcPatrimonioInventariavel(imoveis, patrimonioFinanceiro, veiculos, regimeCasamento) {
+export function calcPatrimonioInventariavel(imoveis, patrimonioFinanceiro, veiculos, regimeCasamento, estadoCivil) {
+  // Solteiro, divorciado ou viúvo: 100% inventariável — sem meação de cônjuge
+  const isCasado = !estadoCivil || estadoCivil === 'casado'
+
   function fracaoInventariavel(item) {
+    if (!isCasado) return 1.0
     if (regimeCasamento === 'separacao_total') return 1.0
     if (regimeCasamento === 'comunhao_universal') return 0.5
     return item.antesCasamento ? 1.0 : 0.5
@@ -178,8 +182,10 @@ export function calcPatrimonioInventariavel(imoveis, patrimonioFinanceiro, veicu
     return acc + centsToNum(ve.valor) * fracaoInventariavel(ve)
   }, 0)
   let fracaoFinanceiro = 1.0
-  if (regimeCasamento === 'comunhao_universal') fracaoFinanceiro = 0.5
-  if (regimeCasamento === 'comunhao_parcial') fracaoFinanceiro = 0.5
+  if (isCasado) {
+    if (regimeCasamento === 'comunhao_universal') fracaoFinanceiro = 0.5
+    if (regimeCasamento === 'comunhao_parcial') fracaoFinanceiro = 0.5
+  }
   const totalFinanceiro = patrimonioFinanceiro * fracaoFinanceiro
   return {
     totalImoveis,
