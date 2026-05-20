@@ -194,8 +194,11 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
         aliquotaMarginal: irInfo.aliquotaMarginal, pgblIdeal: pgblInfo.pgblIdeal, pgblRestante,
         previdenciaCorpAnual, economiaAnual: pgblInfo.economiaAnual, economiaRestante, comparativo, projecao: projection, anos,
         observacaoTributaria: observacaoTributaria || '' })
+    } else if (observacaoTributaria) {
+      // Salva o comentário mesmo sem dados de renda preenchidos
+      onDataChange({ observacaoTributaria: observacaoTributaria })
     }
-  }, [rendaAnualNum, anos, inssAnualFinal, previdenciaCorpAnual])
+  }, [rendaAnualNum, anos, inssAnualFinal, previdenciaCorpAnual, observacaoTributaria])
 
   // ── UPLOAD DE IR ────────────────────────────────────────────────────────────
   async function analisarIR() {
